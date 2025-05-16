@@ -23,8 +23,7 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 * API da DGEG (Direção-Geral de Energia e Geologia)
 
-  * [https://dados.gov.pt/pt/datasets/postos-de-abastecimento-combustiveis-precos-praticados/](https://dados.gov.pt/pt/datasets/postos-de-abastecimento-combustiveis-precos-praticados/)
-
+  * https://precoscombustiveis.dgeg.gov.pt
 ---
 
 ### \:iphone: Stack Técnica 
