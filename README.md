@@ -1,8 +1,8 @@
-## Tankup - App para encontrar combustível mais barato
+## \:fuelpump: Tankup - App para encontrar combustível mais barato
 
 ### \:bulb: Conceito
 
-Aplicação Android (ideal para Android Auto ou head unit) que usa a localização GPS para mostrar os postos de abastecimento mais baratos nas redondezas, com opções de navegação rápida por Google Maps, Waze ou Apple Maps.
+Aplicação Android (ideal para Android Auto ou head unit) que usa a localização GPS para mostrar os postos de abastecimento mais baratos nas redondezas, com opções de navegação rápida por Google Maps, Waze ou Apple Maps. **Válido apenas para Portugal**
 
 ---
 
@@ -21,12 +21,14 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 **Portugal**:
 
-* API da DGEG (Direção-Geral de Energia e Geologia)
+* Dados disponibilizados pelo site da DGEG:
 
-  * https://precoscombustiveis.dgeg.gov.pt
+  * [https://precoscombustiveis.dgeg.gov.pt](https://precoscombustiveis.dgeg.gov.pt)
+  * Nota: Os dados não são providenciados via API com autenticação, sendo necessário fazer parsing dos ficheiros publicados (CSV/XML) ou de HTML/XML.
+
 ---
 
-### \:iphone: Stack Técnica 
+### \:iphone: Stack Técnica
 
 #### Frontend / App
 
@@ -34,7 +36,7 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 * UI: Material Design com botões grandes e tema escuro
 * GPS: Expo Location
 * Requests: fetch/axios
-  
+
 ---
 
 ### \:rocket: MVP - Primeira Versão
@@ -50,9 +52,10 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 ---
 
 ### \:rocket: Necessidades
-1. Tem que ser uma aplicação **leve** máximo 30mb.
-2. Tem que estar bem otimizada para head units menos potentes.
-3. Sem conta para utilização, completamente como ferramenta.
+
+1. Tem que ser uma aplicação **leve**, com um máximo de 30 MB.
+2. Tem que estar bem optimizada para head units menos potentes.
+3. Sem conta para utilização — completamente como ferramenta anónima.
 
 ---
 
@@ -62,10 +65,12 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 * Mapa centrado na localização do utilizador
 * Lista abaixo:
+
   * Nome do posto
   * Tipo e preço do combustível
   * Distância (ex: 2.3 km)
   * Botões: `[Maps] [Waze] [Apple Maps]`
+  * Ícone da marca (Galp, BP, Prio, etc.) opcional
 
 ---
 
@@ -73,7 +78,15 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 * Voz: "Leva-me ao posto mais barato"
 * Histórico de abastecimentos
-* Integração com sensores OBD2 para mostrar autonomia restante de combustível.
+* Integração com sensores OBD2 para mostrar autonomia restante de combustível
+* Cache offline temporária para zonas com pouca ligação
+
+---
+
+### \:lock: Privacidade e Permissões
+
+* A aplicação **não recolhe nem armazena dados pessoais**.
+* A localização é usada **apenas localmente** para apresentar postos de abastecimento próximos.
 
 ---
 
