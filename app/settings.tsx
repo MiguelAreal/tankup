@@ -223,7 +223,15 @@ const handleRadiusChange = (radius: number) => {
             <Text className="text-slate-600 dark:text-slate-400 mb-2">
               Versão: 1.0.0
             </Text>
-            
+
+           <TouchableOpacity
+              className="mt-2"
+              onPress={() => Linking.openURL('https://github.com/MiguelAreal')}
+            >
+              <Text className="text-blue-600 dark:text-blue-400">
+                Desenvolvido por Miguel Areal
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               className="mt-2"
               onPress={() => Linking.openURL('https://precoscombustiveis.dgeg.gov.pt')}

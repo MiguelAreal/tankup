@@ -89,9 +89,7 @@ const MapWeb: React.FC<MapProps> = ({
         );
         
         // Add tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
         
         // Add user location marker with custom icon
         const userIcon = L.divIcon({

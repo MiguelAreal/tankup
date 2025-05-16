@@ -73,6 +73,34 @@ export default function HomeScreen() {
         { type: 'Diesel', price: 1.509 },
         { type: 'GPL', price: 1.589 }
       ],
+    }, {
+      id: '4',
+      name: 'Posto Repsol - Entrecampos',
+      brand: 'Repsol',
+      address: 'Av. 5 de Outubro 207, Lisboa',
+      distance: 1.5,
+      latitude: 38.744659,
+      longitude: -9.149404,
+      fuels: [
+        { type: 'Gasolina 95', price: 1.709 },
+        { type: 'Gasolina 98', price: 1.859 },
+        { type: 'Diesel', price: 1.509 },
+        { type: 'GPL', price: 1.589 }
+      ],
+    }, {
+      id: '5',
+      name: 'Posto Repsol - Entrecampos',
+      brand: 'Repsol',
+      address: 'Av. 5 de Outubro 207, Lisboa',
+      distance: 1.5,
+      latitude: 38.744659,
+      longitude: -9.149404,
+      fuels: [
+        { type: 'Gasolina 95', price: 1.709 },
+        { type: 'Gasolina 98', price: 1.859 },
+        { type: 'Diesel', price: 1.509 },
+        { type: 'GPL', price: 1.589 }
+      ],
     },
   ];
 
@@ -80,8 +108,8 @@ export default function HomeScreen() {
   const animateMapHeight = (toValue: number) => {
   Animated.timing(mapHeight, {
     toValue,
-    duration: 150,
-    easing: Easing.out(Easing.ease),
+    duration: 50,
+    easing: Easing.linear,
     useNativeDriver: false, // altura não suporta native driver
   }).start();
 };
