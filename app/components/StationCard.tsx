@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
 import React, { useContext } from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { AppContext } from '../../context/AppContext';
+import stringsEN from '../assets/strings.en.json';
+import stringsPT from '../assets/strings.pt.json';
+import { Strings } from '../types/strings';
+import { calculateDistance } from '../utils/location';
 import { Station } from './Map/Map.types';
 
 const brandLogos: Record<string, any> = {
@@ -17,15 +20,6 @@ const brandLogos: Record<string, any> = {
 // Default logo (Galp)
 const defaultLogo = require('../../assets/brands/galp.png');
 
-// Fuel type mapping for displaying user-friendly names
-const fuelTypeNames: Record<string, string> = {
-  'diesel': 'Gasóleo Simples',
-  'diesel_special': 'Gasóleo Especial',
-  'gasoline_95': 'Gasolina 95',
-  'gasoline_98': 'Gasolina 98',
-  'gpl': 'GPL Auto',
-  'eletrico': 'Elétrico',
-};
 
 type StationCardProps = {
   station: Station;
@@ -44,15 +38,23 @@ const StationCard: React.FC<StationCardProps> = ({
   compact = false,
   isSelected = false,
 }) => {
-  const router = useRouter();
   const [isFavorite, setIsFavorite] = React.useState(false);
-  const { preferredNavigationApp, darkMode } = useContext(AppContext);
+  const { preferredNavigationApp, language } = useContext(AppContext);
+  const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   
   // Get the fuel info for the selected type
-  const fuelInfo = station.fuels.find(fuel => fuel.type === selectedFuelType);
+  const fuelInfo = station.combustiveis.find(fuel => fuel.tipo === selectedFuelType);
   
   // Get the appropriate brand logo or use default (Galp)
-  const brandLogo = brandLogos[station.brand] || defaultLogo;
+  const brandLogo = brandLogos[station.marca] || defaultLogo;
+
+  // Calculate distance if user location is available
+  const distance = userLocation ? calculateDistance(
+    userLocation.latitude,
+    userLocation.longitude,
+    station.localizacao.coordinates[1],
+    station.localizacao.coordinates[0]
+  ) : station.distancia / 1000; // Convert meters to kilometers
   
   React.useEffect(() => {
     // Check if station is already in favorites
@@ -61,7 +63,7 @@ const StationCard: React.FC<StationCardProps> = ({
         const favoritesJson = await AsyncStorage.getItem('favoriteStations');
         if (favoritesJson) {
           const favorites = JSON.parse(favoritesJson);
-          setIsFavorite(favorites.some((fav: Station) => fav.id === station.id));
+          setIsFavorite(favorites.some((fav: Station) => fav.idDgeg === station.idDgeg));
         }
       } catch (error) {
         console.error('Error checking favorite status:', error);
@@ -69,7 +71,7 @@ const StationCard: React.FC<StationCardProps> = ({
     };
     
     checkFavoriteStatus();
-  }, [station.id]);
+  }, [station.idDgeg]);
   
   const toggleFavorite = async () => {
     try {
@@ -78,7 +80,7 @@ const StationCard: React.FC<StationCardProps> = ({
       
       if (isFavorite) {
         // Remove from favorites
-        favorites = favorites.filter((fav: Station) => fav.id !== station.id);
+        favorites = favorites.filter((fav: Station) => fav.idDgeg !== station.idDgeg);
       } else {
         // Add to favorites
         favorites.push(station);
@@ -92,10 +94,11 @@ const StationCard: React.FC<StationCardProps> = ({
   };
   
   const openInMaps = () => {
-    if (!station.latitude || !station.longitude) return;
+    const [lng, lat] = station.localizacao.coordinates;
+    if (!lat || !lng) return;
     
-    const label = encodeURIComponent(station.name);
-    const latLng = `${station.latitude},${station.longitude}`;
+    const label = encodeURIComponent(station.nome);
+    const latLng = `${lat},${lng}`;
     
     let url;
     switch (preferredNavigationApp) {
@@ -107,7 +110,7 @@ const StationCard: React.FC<StationCardProps> = ({
         break;
       case 'google_maps':
       default:
-        url = `https://www.google.com/maps/dir/?api=1&destination=${latLng}&destination_place_id=${station.id}&travelmode=driving`;
+        url = `https://www.google.com/maps/dir/?api=1&destination=${latLng}&destination_place_id=${station.idDgeg}&travelmode=driving`;
         break;
     }
     
@@ -138,10 +141,10 @@ const StationCard: React.FC<StationCardProps> = ({
           </View>
           <View className="flex-1">
             <Text className="font-medium text-slate-800 dark:text-slate-200" numberOfLines={1}>
-              {station.name}
+              {station.nome}
             </Text>
             <Text className="text-slate-600 dark:text-slate-400 text-sm" numberOfLines={1}>
-              {station.distance ? `${station.distance.toFixed(1)} km` : ''}
+              {distance !== undefined ? `${distance.toFixed(1)} ${strings.station.distance}` : ''}
             </Text>
           </View>
         </View>
@@ -149,7 +152,7 @@ const StationCard: React.FC<StationCardProps> = ({
         <View className="flex-row items-center">
           {fuelInfo && (
             <Text className="font-bold text-lg mr-2 text-blue-600 dark:text-blue-400">
-              {fuelInfo.price.toFixed(3)} €
+              {fuelInfo.preco.toFixed(3)} €
             </Text>
           )}
           <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
@@ -173,10 +176,10 @@ const StationCard: React.FC<StationCardProps> = ({
           </View>
           <View>
             <Text className="font-medium text-lg text-slate-800 dark:text-slate-200">
-              {station.name}
+              {station.nome}
             </Text>
             <Text className="text-slate-600 dark:text-slate-400 text-sm">
-              {station.brand}
+              {station.marca}
             </Text>
           </View>
         </View>
@@ -198,12 +201,12 @@ const StationCard: React.FC<StationCardProps> = ({
       {/* Station info */}
       <View className="mb-3">
         <Text className="text-slate-600 dark:text-slate-400" numberOfLines={2}>
-          {station.address}
+          {station.morada.morada}, {station.morada.localidade}
         </Text>
         
-        {station.distance !== undefined && (
+        {distance !== undefined && (
           <Text className="text-slate-600 dark:text-slate-400 mt-1">
-            Distância: <Text className="font-medium">{station.distance.toFixed(1)} km</Text>
+            {strings.station.distance}: <Text className="font-medium">{distance.toFixed(1)} km</Text>
           </Text>
         )}
       </View>
@@ -212,23 +215,23 @@ const StationCard: React.FC<StationCardProps> = ({
       <View className="flex-row justify-between items-center mb-4 bg-blue-50 dark:bg-slate-700 p-3 rounded-lg">
         <View>
           <Text className="text-slate-600 dark:text-slate-400 text-sm">
-            {fuelTypeNames[selectedFuelType] || selectedFuelType}
+            {strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]}
           </Text>
           {fuelInfo ? (
             <Text className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {fuelInfo.price.toFixed(3)} €/L
+              {fuelInfo.preco.toFixed(3)} €/L
             </Text>
           ) : (
             <Text className="text-slate-500 dark:text-slate-500 italic">
-              Não disponível
+              {strings.station.notAvailable}
             </Text>
           )}
         </View>
         
-        {fuelInfo && fuelInfo.price < 1.8 && (
+        {fuelInfo && fuelInfo.preco < 1.8 && (
           <View className="bg-green-100 dark:bg-green-900 px-3 py-1 rounded-full">
             <Text className="text-green-600 dark:text-green-400 font-medium text-sm">
-              Bom preço
+              {strings.station.goodPrice}
             </Text>
           </View>
         )}
@@ -242,9 +245,9 @@ const StationCard: React.FC<StationCardProps> = ({
         >
           <Ionicons name="navigate" size={18} color="#ffffff" />
           <Text className="ml-2 text-white font-medium">
-            {preferredNavigationApp === 'waze' ? 'Abrir no Waze' : 
-             preferredNavigationApp === 'apple_maps' ? 'Abrir no Apple Maps' : 
-             'Abrir no Maps'}
+            {preferredNavigationApp === 'waze' ? strings.station.openInWaze : 
+             preferredNavigationApp === 'apple_maps' ? strings.station.openInAppleMaps : 
+             strings.station.openInMaps}
           </Text>
         </TouchableOpacity>
       </View>

@@ -1,0 +1,58 @@
+{
+  "station": {
+    "loading": "Loading...",
+    "distance": "km away",
+    "notAvailable": "Not available",
+    "goodPrice": "Good price",
+    "openInMaps": "Open in Maps",
+    "openInWaze": "Open in Waze",
+    "openInAppleMaps": "Open in Apple Maps",
+    "cheapestNearby": "Cheapest nearby",
+    "noStationsFound": "No stations found",
+    "locationRequired": "Location permission is required to show nearby stations",
+    "useSearch": "Please use the search option to find stations",
+    "fuelType": {
+      "Gasóleo simples": "Diesel",
+      "Gasóleo especial": "Special Diesel",
+      "Gasolina simples 95": "Simple Gasoline 95",
+      "Gasolina especial 95": "Special Gasoline 95",
+      "Gasolina 98": "Gasoline 98",
+      "Biodiesel B15": "Biodiesel B15",
+      "GPL Auto": "GPL Auto"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search districts or cities...",
+    "selectDistrict": "Select a district"
+  },
+  "station.distance": "Distance",
+  "station.noLocationTitle": "Location permission is required to show nearby stations.",
+  "station.noLocationSubtitle": "Please use the search option to find stations.",
+  "settings": {
+    "title": "Settings",
+    "darkMode": "Dark mode",
+    "mapProvider": "Map style",
+    "about": "About",
+    "language": "Language",
+    "favorites": "Favorites",
+    "save": "Save",
+    "cancel": "Cancel",
+    "select": "Select",
+    "navigationApp": "Navigation app",
+    "searchRadius": "Search radius",
+    "fuelType": "Fuel type",
+    "logout": "Logout",
+    "version": "Version",
+    "developer": "Developed by Miguel Areal",
+    "provider": "Data provided by DGEG",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use",
+    "aboutText": "TankUp - Portugal Fuel station finder."
+  },
+  "favorites": {
+    "title": "Favorites",
+    "empty": "No favorite stations",
+    "addHint": "Add stations to favorites by clicking the heart icon in the station list"
+  }
+} 

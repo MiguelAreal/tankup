@@ -1,0 +1,57 @@
+{
+  "station": {
+    "loading": "A carregar...",
+    "distance": "km de distância",
+    "notAvailable": "Não disponível",
+    "goodPrice": "Bom preço",
+    "openInMaps": "Abrir no Maps",
+    "openInWaze": "Abrir no Waze",
+    "openInAppleMaps": "Abrir no Apple Maps",
+    "cheapestNearby": "Mais baratas próximas",
+    "noStationsFound": "Nenhuma estação encontrada",
+    "locationRequired": "É necessária permissão de localização para mostrar estações próximas",
+    "useSearch": "Por favor, use a opção de pesquisa para encontrar estações",
+    "fuelType": {
+      "Gasóleo simples": "Gasóleo Simples",
+      "Gasóleo especial": "Gasóleo Especial",
+      "Gasolina simples 95": "Gasolina Simples 95",
+      "Gasolina especial 95": "Gasolina Especial 95",
+      "Gasolina 98": "Gasolina 98",
+      "Biodiesel B15": "Biodiesel B15",
+      "GPL Auto": "GPL Auto"
+    }
+  },
+  "station.noLocationTitle": "Permissão de localização é necessária para mostrar postos próximos.",
+  "station.noLocationSubtitle": "Por favor, use a opção de pesquisa para encontrar postos.",
+  "search": {
+    "title": "Pesquisar por localização",
+    "placeholder": "Pesquisar distritos ou cidades...",
+    "selectDistrict": "Selecionar distrito"
+  },
+  "settings": {
+    "title": "Definições",
+    "darkMode": "Modo escuro",
+    "mapProvider": "Estilo do mapa",
+    "about": "Sobre",
+    "language": "Idioma",
+    "favorites": "Favoritos",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "select": "Selecionar",
+    "navigationApp": "Aplicação de navegação",
+    "searchRadius": "Raio de busca",
+    "fuelType": "Tipo de combustível",
+    "logout": "Terminar sessão",
+    "version": "Versão",
+    "developer": "Desenvolvido por Miguel Areal",
+    "provider": "Dados fornecidos pelo DGEG",
+    "privacy": "Política de Privacidade",
+    "terms": "Termos de Uso",
+    "aboutText": "TankUp - Localizador de postos de combustível em Portugal."
+  },
+  "favorites": {
+    "title": "Favoritos",
+    "empty": "Nenhum posto favorito",
+    "addHint": "Adicione postos aos favoritos clicando no ícone de coração na lista de postos"
+  }
+} 

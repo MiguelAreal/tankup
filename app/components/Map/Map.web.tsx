@@ -1,6 +1,30 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { AppContext } from '../../../context/AppContext';
+import stringsEN from '../../assets/strings.en.json';
+import stringsPT from '../../assets/strings.pt.json';
+import { Strings } from '../../types/strings';
 import { Station } from './Map.types';
+
+// Map provider options with their display names and URLs
+const mapProviders = {
+  openstreetmap: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors'
+  },
+  cartodb: {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+    attribution: '© CartoDB'
+  },
+  stamen: {
+    url: 'https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png',
+    attribution: '© Stamen Design'
+  },
+  esri: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '© ESRI'
+  }
+};
 
 interface MapProps {
   stations: Station[];
@@ -12,6 +36,8 @@ interface MapProps {
 }
 
 const MapWeb: React.FC<MapProps> = (props) => {
+  const { mapProvider, language } = useContext(AppContext);
+  const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [components, setComponents] = useState<{
@@ -59,7 +85,7 @@ const MapWeb: React.FC<MapProps> = (props) => {
   if (isLoading || !components) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading map...</Text>
+        <Text>{strings.station?.loading}</Text>
       </View>
     );
   }
@@ -67,36 +93,95 @@ const MapWeb: React.FC<MapProps> = (props) => {
   const { L, MapContainer, Marker, TileLayer, useMap } = components;
 
   const createStationIcon = (isSelected: boolean) => L.divIcon({
-    html: `<div style="
-      width: 12px;
-      height: 12px;
-      background: ${isSelected ? 'rgb(239, 68, 68)' : 'rgb(0, 163, 82)'};
-      border: 2px solid #fff;
-      border-radius: 50%;
-      box-sizing: border-box;
-      transition: background-color 0.2s ease;
-    "></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    html: `
+      <div class="station-marker ${isSelected ? 'selected' : ''}" style="
+        position: relative;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      ">
+        <div style="
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 24px;
+          height: 24px;
+          background: ${isSelected ? 'rgb(239, 68, 68)' : 'rgb(0, 163, 82)'};
+          border: 3px solid #fff;
+          border-radius: 50% 50% 50% 0;
+          transform: translateX(-50%) rotate(-45deg);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0.8;
+            transform: rotate(45deg);
+          "></div>
+        </div>
+      </div>
+      <style>
+        .station-marker.selected {
+          transform: scale(1.2);
+        }
+        .station-marker:hover {
+          transform: scale(1.1);
+        }
+      </style>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
     className: ''
   });
 
   const userIcon = L.divIcon({
-    html: `<div style="
-      width: 12px;
-      height: 12px;
-      background: #3b82f6;
-      border: 2px solid #fff;
-      border-radius: 50%;
-      box-sizing: border-box;
-    "></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    html: `
+      <div style="
+        position: relative;
+        width: 32px;
+        height: 32px;
+      ">
+        <div style="
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 24px;
+          height: 24px;
+          background: #3b82f6;
+          border: 3px solid #fff;
+          border-radius: 50% 50% 50% 0;
+          transform: translateX(-50%) rotate(-45deg);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0.8;
+            transform: rotate(45deg);
+          "></div>
+        </div>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
     className: ''
   });
 
   const handleMarkerClick = (station: Station) => {
-    setSelectedStationId(station.id);
+    setSelectedStationId(station.idDgeg.toString());
     props.onMarkerPress(station);
   };
 
@@ -114,17 +199,17 @@ const MapWeb: React.FC<MapProps> = (props) => {
       onClick={handleMapClick}
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+        url={mapProviders[mapProvider].url}
+        attribution={mapProviders[mapProvider].attribution}
       />
 
       <Marker position={[props.userLocation.latitude, props.userLocation.longitude]} icon={userIcon} />
 
       {props.stations.map((station) => (
         <Marker
-          key={station.id}
-          position={[station.latitude, station.longitude]}
-          icon={createStationIcon(station.id === selectedStationId)}
+          key={station.idDgeg}
+          position={[station.localizacao.coordinates[1], station.localizacao.coordinates[0]]}
+          icon={createStationIcon(station.idDgeg.toString() === selectedStationId)}
           eventHandlers={{
             click: () => handleMarkerClick(station),
           }}

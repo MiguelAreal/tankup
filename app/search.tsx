@@ -1,200 +1,292 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+import Voice, { SpeechResultsEvent } from '@react-native-voice/voice';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useContext, useEffect, useState } from 'react';
+import { SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppContext } from '../context/AppContext';
+import locations from './assets/locations.json';
+import stringsEN from './assets/strings.en.json';
+import stringsPT from './assets/strings.pt.json';
+import { Strings } from './types/strings';
 
-import FuelTypeSelector from './components/FuelTypeSelector';
-import StationCard from './components/StationCard';
-import { fetchStationsByLocation } from './utils/api';
-
-// Portugal districts data
-const districts = [
-  'Aveiro', 'Beja', 'Braga', 'Bragança', 'Castelo Branco', 'Coimbra', 'Évora', 
-  'Faro', 'Guarda', 'Leiria', 'Lisboa', 'Portalegre', 'Porto', 'Santarém', 
-  'Setúbal', 'Viana do Castelo', 'Vila Real', 'Viseu', 'Açores', 'Madeira'
-];
-
-// Example counties (would be dynamic based on selected district)
-const countiesByDistrict: Record<string, string[]> = {
-  'Lisboa': ['Amadora', 'Cascais', 'Lisboa', 'Loures', 'Odivelas', 'Oeiras', 'Sintra'],
-  'Porto': ['Gondomar', 'Maia', 'Matosinhos', 'Porto', 'Póvoa de Varzim', 'Vila do Conde', 'Vila Nova de Gaia'],
-  // Add other districts as needed
-};
-
-// Station type definition
-type Station = {
+type SearchResult = {
+  type: 'district' | 'city';
   id: string;
   name: string;
-  brand: string;
-  address: string;
-  distance: number;
-  latitude: number;
-  longitude: number;
-  fuels: {
-    type: string;
-    price: number;
-  }[];
+  districtName?: string;
 };
 
 export default function SearchScreen() {
   const router = useRouter();
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [selectedCounty, setSelectedCounty] = useState('');
-  const [selectedFuelType, setSelectedFuelType] = useState('diesel');
-  const [loading, setLoading] = useState(false);
-  const [stations, setStations] = useState<Station[]>([]);
-  
-  // Get counties for selected district
-  const counties = selectedDistrict ? (countiesByDistrict[selectedDistrict] || []) : [];
-  
-  // Handle search
-  const handleSearch = async () => {
-    if (!selectedDistrict || !selectedCounty) {
-      return;
+  const { language, darkMode } = useContext(AppContext);
+  const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
+  const [isVoiceAvailable, setIsVoiceAvailable] = useState(false);
+
+  // Apply dark mode class to html element
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const html = document.documentElement;
+      if (darkMode) {
+        html.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+      }
     }
-    
-    setLoading(true);
-    try {
-      const result = await fetchStationsByLocation(selectedDistrict, selectedCounty, selectedFuelType);
-      setStations(Array.isArray(result) ? result as Station[] : []);
-    } catch (error) {
-      console.error('Error fetching stations:', error);
-    } finally {
-      setLoading(false);
+  }, [darkMode]);
+
+  useEffect(() => {
+    const initVoice = async () => {
+      try {
+        await Voice.isAvailable();
+        setIsVoiceAvailable(true);
+        Voice.onSpeechResults = onSpeechResults;
+        Voice.onSpeechError = onSpeechError;
+      } catch (error) {
+        console.error('Voice recognition not available:', error);
+        setIsVoiceAvailable(false);
+      }
+    };
+
+    initVoice();
+
+    return () => {
+      if (isVoiceAvailable) {
+        Voice.destroy().then(() => {
+          Voice.removeAllListeners();
+        }).catch(error => {
+          console.error('Error cleaning up voice:', error);
+        });
+      }
+    };
+  }, []);
+
+  const onSpeechResults = (e: SpeechResultsEvent) => {
+    if (e.value && e.value.length > 0) {
+      setSearchQuery(e.value[0]);
     }
   };
-  
-  // Sort stations by price
-  const sortedStations = [...stations].sort((a, b) => {
-    const aPrice = a.fuels.find(fuel => fuel.type === selectedFuelType)?.price || 0;
-    const bPrice = b.fuels.find(fuel => fuel.type === selectedFuelType)?.price || 0;
-    return aPrice - bPrice;
-  });
-  
-  // Just get the top 10 stations
-  const topStations = sortedStations.slice(0, 10);
-  
+
+  const onSpeechError = (e: any) => {
+    console.error('Speech recognition error:', e);
+    setIsListening(false);
+  };
+
+  // Combine districts and cities into a single searchable list
+  const searchResults: SearchResult[] = React.useMemo(() => {
+    if (!searchQuery) return [];
+
+    const query = searchQuery.toLowerCase();
+    const results: SearchResult[] = [];
+
+    // Add matching districts
+    locations.districts.forEach(district => {
+      if (district.name.toLowerCase().includes(query)) {
+        results.push({
+          type: 'district',
+          id: district.id,
+          name: district.name
+        });
+      }
+
+      // Add matching cities from this district
+      district.cities.forEach(city => {
+        if (city.toLowerCase().includes(query)) {
+          results.push({
+            type: 'city',
+            id: city,
+            name: city,
+            districtName: district.name
+          });
+        }
+      });
+    });
+
+    // Sort results: districts first, then cities alphabetically
+    return results.sort((a, b) => {
+      if (a.type === b.type) {
+        return a.name.localeCompare(b.name);
+      }
+      return a.type === 'district' ? -1 : 1;
+    });
+  }, [searchQuery]);
+
+  const handleVoiceInput = async () => {
+    if (!isVoiceAvailable) {
+      console.log('Voice recognition is not available');
+      return;
+    }
+
+    try {
+      setIsListening(true);
+      await Voice.start(language === 'pt' ? 'pt-PT' : 'en-US');
+    } catch (error) {
+      console.error('Error starting voice recognition:', error);
+      setIsListening(false);
+    }
+  };
+
+  const stopListening = async () => {
+    if (!isVoiceAvailable) return;
+
+    try {
+      await Voice.stop();
+    } catch (error) {
+      console.error('Error stopping voice recognition:', error);
+    } finally {
+      setIsListening(false);
+    }
+  };
+
+  const handleResultPress = (result: SearchResult) => {
+    if (result.type === 'district') {
+      setSelectedDistrict(result.id);
+      setSearchQuery(''); // Clear search when selecting a district
+    } else {
+      setSelectedDistrict(null); // Clear selected district when choosing a city
+      // Handle city selection
+      router.replace('/'); // Use replace instead of back to ensure we go to the map
+    }
+  };
+
+  const handleBackPress = () => {
+    router.replace('/');
+  };
+
+  // Get cities for the selected district (only used when not searching)
+  const districtCities = React.useMemo(() => {
+    if (!selectedDistrict || searchQuery) return [];
+    const district = locations.districts.find(d => d.id === selectedDistrict);
+    return district?.cities || [];
+  }, [selectedDistrict, searchQuery]);
+
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900">
-      <ScrollView className="flex-1">
-        {/* Back button */}
-        <View className="px-4 py-2">
-          <TouchableOpacity 
-            onPress={() => router.back()}
-            className="flex-row items-center"
-          >
-            <Ionicons name="arrow-back" size={24} color="#2563eb" />
-            <Text className="ml-2 text-blue-600 dark:text-blue-400 font-medium">Voltar</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View className="p-4">
-          <Text className="text-xl font-bold mb-4 text-slate-800 dark:text-slate-200">
-            Pesquisar por localização
+      {/* Header */}
+      <View className="px-4 py-2">
+        <TouchableOpacity 
+          onPress={handleBackPress}
+          className="flex-row items-center"
+        >
+          <Ionicons name="arrow-back" size={24} color="#2563eb" />
+          <Text className="ml-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
+            {strings.search.title}
           </Text>
-          
-          {/* Fuel Type Selector */}
-          <FuelTypeSelector 
-            selectedFuelType={selectedFuelType} 
-            onSelectFuelType={setSelectedFuelType} 
+        </TouchableOpacity>
+      </View>
+
+      {/* Search Input */}
+      <View className="p-4">
+        <View className="bg-white dark:bg-slate-800 rounded-lg flex-row items-center px-4">
+          <Ionicons name="search" size={20} color="#64748b" />
+          <TextInput
+            className="flex-1 py-3 px-2 text-slate-800 dark:text-slate-200"
+            placeholder={strings.search.placeholder}
+            placeholderTextColor="#64748b"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
-          
-          {/* District Selector */}
-          <View className="mb-4 bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
-            <Text className="px-4 pt-2 text-slate-600 dark:text-slate-400">
-              Distrito
-            </Text>
-            <View className="border border-slate-200 dark:border-slate-700 rounded-lg">
-              <Picker
-                selectedValue={selectedDistrict}
-                onValueChange={(itemValue) => {
-                  setSelectedDistrict(itemValue);
-                  setSelectedCounty('');
-                }}
-                style={{ 
-                  backgroundColor: 'transparent',
-                  color: '#1e293b',
-                }}
-              >
-                <Picker.Item label="Selecionar distrito" value="" />
-                {districts.map((district) => (
-                  <Picker.Item key={district} label={district} value={district} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-          
-          {/* County Selector (enabled only if district is selected) */}
-          <View className={`mb-4 bg-white dark:bg-slate-800 rounded-lg overflow-hidden ${!selectedDistrict ? 'opacity-50' : ''}`}>
-            <Text className="px-4 pt-2 text-slate-600 dark:text-slate-400">
-              Concelho
-            </Text>
-            <View className="border border-slate-200 dark:border-slate-700 rounded-lg">
-              <Picker
-                selectedValue={selectedCounty}
-                onValueChange={setSelectedCounty}
-                enabled={!!selectedDistrict}
-                style={{ 
-                  backgroundColor: 'transparent',
-                  color: '#1e293b',
-                }}
-              >
-                <Picker.Item label="Selecionar concelho" value="" />
-                {counties.map((county) => (
-                  <Picker.Item key={county} label={county} value={county} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-          
-          {/* Search Button */}
-          <TouchableOpacity
-            className={`py-4 rounded-lg flex-row justify-center items-center ${
-              (!selectedDistrict || !selectedCounty)
-                ? 'bg-blue-300 dark:bg-blue-900'
-                : 'bg-blue-600 dark:bg-blue-500'
-            }`}
-            onPress={handleSearch}
-            disabled={!selectedDistrict || !selectedCounty || loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#ffffff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="search" size={20} color="#ffffff" />
-                <Text className="ml-2 text-white font-medium">Pesquisar</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          
-          {/* Results */}
-          {topStations.length > 0 && (
-            <View className="mt-6">
-              <Text className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-200">
-                Resultados:
-              </Text>
-              
-              {topStations.map((station) => (
-                <StationCard
-                  key={station.id}
-                  station={station}
-                  selectedFuelType={selectedFuelType}
-                />
-              ))}
-            </View>
-          )}
-          
-          {/* No results message */}
-          {!loading && stations.length === 0 && selectedDistrict && selectedCounty && (
-            <View className="mt-6 items-center justify-center p-4 bg-white dark:bg-slate-800 rounded-lg">
-              <Ionicons name="information-circle-outline" size={36} color="#94a3b8" />
-              <Text className="text-center mt-2 text-slate-600 dark:text-slate-400">
-                Não foram encontrados postos nesta localização.
-              </Text>
-            </View>
-          )}
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#64748b" />
+            </TouchableOpacity>
+          ) : isVoiceAvailable ? (
+            <TouchableOpacity 
+              onPress={isListening ? stopListening : handleVoiceInput}
+              className={`p-2 ${isListening ? 'bg-red-100 dark:bg-red-900' : ''}`}
+            >
+              <Ionicons 
+                name={isListening ? "mic" : "mic-outline"} 
+                size={20} 
+                color={isListening ? "#ef4444" : "#64748b"} 
+              />
+            </TouchableOpacity>
+          ) : null}
         </View>
+      </View>
+
+      {/* Content */}
+      <ScrollView className="flex-1 px-4">
+        {searchQuery.length > 0 ? (
+          // Mostrar resultados de pesquisa globais (distritos + cidades)
+          <View>
+            {searchResults.map((result) => (
+              <TouchableOpacity
+                key={`${result.type}-${result.id}`}
+                className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-2"
+                onPress={() => handleResultPress(result)}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons 
+                    name={result.type === 'district' ? 'location' : 'location-outline'} 
+                    size={20} 
+                    color="#64748b" 
+                    className="mr-2"
+                  />
+                  <View>
+                    <Text className="text-slate-800 dark:text-slate-200 font-medium">
+                      {result.name}
+                    </Text>
+                    {result.type === 'city' && result.districtName && (
+                      <Text className="text-slate-500 dark:text-slate-400 text-sm">
+                        {result.districtName}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : !selectedDistrict ? (
+          // Districts List
+          <View>
+            <Text className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
+              {strings.search.selectDistrict}
+            </Text>
+            {locations.districts.map(district => (
+              <TouchableOpacity
+                key={district.id}
+                className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-2"
+                onPress={() => setSelectedDistrict(district.id)}
+              >
+                <Text className="text-slate-800 dark:text-slate-200 font-medium">
+                  {district.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          // Cities List for selected district
+          <View>
+            <View className="flex-row items-center mb-4">
+              <TouchableOpacity
+                onPress={() => setSelectedDistrict(null)}
+                className="mr-2"
+              >
+                <Ionicons name="arrow-back" size={24} color="#64748b" />
+              </TouchableOpacity>
+              <Text className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                {locations.districts.find(d => d.id === selectedDistrict)?.name}
+              </Text>
+            </View>
+            {districtCities.map(city => (
+              <TouchableOpacity
+                key={city}
+                className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-2"
+                onPress={() => {
+                  setSelectedDistrict(null); // Clear selected district when choosing a city
+                  router.replace('/'); // Use replace instead of back to ensure we go to the map
+                }}
+              >
+                <Text className="text-slate-800 dark:text-slate-200 font-medium">
+                  {city}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

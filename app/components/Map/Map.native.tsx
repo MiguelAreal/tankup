@@ -17,7 +17,7 @@ const MapNative: React.FC<MapProps> = (props) => {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
 
   const handleMarkerPress = (station: Station) => {
-    setSelectedStationId(station.id);
+    setSelectedStationId(station.idDgeg.toString());
     props.onMarkerPress(station);
   };
 
@@ -54,19 +54,23 @@ const MapNative: React.FC<MapProps> = (props) => {
         />
 
         {/* Station Markers */}
-        {props.stations.map((station) => (
-          <Marker
-            key={station.id}
-            coordinate={{
-              latitude: station.latitude,
-              longitude: station.longitude,
-            }}
-            pinColor={selectedStationId === station.id ? "red" : "green"}
-            onPress={() => handleMarkerPress(station)}
-            title={station.name}
-            description={`${props.selectedFuelType}: ${station.fuels.find(f => f.type === props.selectedFuelType)?.price.toFixed(3)}€`}
-          />
-        ))}
+        {props.stations.map((station) => {
+          const [lng, lat] = station.localizacao.coordinates;
+          const fuelInfo = station.combustiveis.find(f => f.tipo === props.selectedFuelType);
+          return (
+            <Marker
+              key={station.idDgeg}
+              coordinate={{
+                latitude: lat,
+                longitude: lng,
+              }}
+              pinColor={selectedStationId === station.idDgeg.toString() ? "red" : "green"}
+              onPress={() => handleMarkerPress(station)}
+              title={station.nome}
+              description={fuelInfo ? `${props.selectedFuelType}: ${fuelInfo.preco.toFixed(3)}€` : ''}
+            />
+          );
+        })}
 
         {/* Search Radius Circle */}
         <Circle

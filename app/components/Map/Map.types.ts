@@ -1,16 +1,32 @@
 import { LatLng } from 'react-native-maps';
 
 export interface Station {
-  id: string;
-  name: string;
-  brand: string;
-  address: string;
-  distance: number;
-  latitude: number;
-  longitude: number;
-  fuels: {
+  idDgeg: number;
+  nome: string;
+  marca: string;
+  morada: {
+    distrito: string;
+    municipio: string;
+    morada: string;
+    localidade: string;
+    codPostal: string;
+  };
+  localizacao: {
     type: string;
-    price: number;
+    coordinates: [number, number];
+  };
+  horario: {
+    diasUteis: string;
+    sabado: string;
+    domingo: string;
+    feriado: string;
+  };
+  ultimaAtualizacao: string;
+  distancia: number;
+  combustiveis: {
+    tipo: string;
+    preco: number;
+    dataAtualizacao: string;
   }[];
 }
 

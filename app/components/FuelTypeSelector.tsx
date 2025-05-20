@@ -1,37 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useContext } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { AppContext } from '../../context/AppContext';
+import stringsEN from '../assets/strings.en.json';
+import stringsPT from '../assets/strings.pt.json';
+import { Strings } from '../types/strings';
 
-// Fuel type definitions with icons and label
+// Fuel type definitions with icons
 const fuelTypes = [
   {
-    id: 'diesel',
-    label: 'Gasóleo',
+    id: 'Gasóleo simples',
     icon: 'water',
   },
   {
-    id: 'diesel_special',
-    label: 'Gasóleo +',
+    id: 'Gasóleo especial',
     icon: 'water-outline',
   },
   {
-    id: 'gasoline_95',
-    label: 'Gasolina 95',
+    id: 'Gasolina simples 95',
     icon: 'speedometer',
   },
   {
-    id: 'gasoline_98',
-    label: 'Gasolina 98',
+    id: 'Gasolina especial 95',
     icon: 'speedometer-outline',
   },
   {
-    id: 'gpl',
-    label: 'GPL',
+    id: 'Gasolina 98',
     icon: 'flame',
-  },,
+  },
   {
-    id: 'eletrico',
-    label: 'Elétrico',	
+    id: 'Biodiesel B15',
+    icon: 'flash',
+  },
+  {
+    id: 'GPL Auto',
     icon: 'flash',
   },
 ];
@@ -45,41 +47,44 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
   selectedFuelType,
   onSelectFuelType,
 }) => {
+  const { language } = useContext(AppContext);
+  const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
+
   return (
-    <View className="mb-2 mt-2">
-      <ScrollView 
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 4 }}
-      >
-        {fuelTypes.filter(Boolean).map((fuel) => (
-          <TouchableOpacity
-            key={fuel.id}
-            className={`mr-2 px-4 py-3 rounded-lg flex-row items-center ${
-              selectedFuelType === fuel.id
-                ? 'bg-blue-600 dark:bg-blue-500'
-                : 'bg-white dark:bg-slate-800'
-            }`}
-            onPress={() => onSelectFuelType(fuel.id)}
-          >
-            <Ionicons 
-              name={fuel.icon as any} 
-              size={18} 
-              color={selectedFuelType === fuel.id ? '#ffffff' : '#64748b'} 
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      className="px-4 py-1"
+    >
+      {fuelTypes.map((type) => (
+        <TouchableOpacity
+          key={type.id}
+          className={`mr-2 mb-2 p-2 px-4 rounded-lg ${
+            selectedFuelType === type.id
+              ? 'bg-blue-600'
+              : 'bg-slate-200 dark:bg-slate-700'
+          }`}
+          onPress={() => onSelectFuelType(type.id)}
+        >
+          <View className="flex-row items-center">
+            <Ionicons
+              name={type.icon as any}
+              size={20}
+              color={selectedFuelType === type.id ? '#ffffff' : '#64748b'}
             />
-            <Text 
-              className={`ml-2 font-medium ${
-                selectedFuelType === fuel.id
-                  ? 'text-white'
+            <Text
+              className={`ml-2 ${
+                selectedFuelType === type.id
+                  ? 'text-white font-medium'
                   : 'text-slate-700 dark:text-slate-300'
               }`}
             >
-              {fuel.label}
+              {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
             </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   );
 };
 
