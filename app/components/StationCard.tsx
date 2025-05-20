@@ -24,6 +24,7 @@ const fuelTypeNames: Record<string, string> = {
   'gasoline_95': 'Gasolina 95',
   'gasoline_98': 'Gasolina 98',
   'gpl': 'GPL Auto',
+  'eletrico': 'Elétrico',
 };
 
 type StationCardProps = {
@@ -32,6 +33,7 @@ type StationCardProps = {
   userLocation?: { latitude: number; longitude: number };
   showFavoriteButton?: boolean;
   compact?: boolean;
+  isSelected?: boolean;
 };
 
 const StationCard: React.FC<StationCardProps> = ({
@@ -40,10 +42,11 @@ const StationCard: React.FC<StationCardProps> = ({
   userLocation,
   showFavoriteButton = true,
   compact = false,
+  isSelected = false,
 }) => {
   const router = useRouter();
   const [isFavorite, setIsFavorite] = React.useState(false);
-  const { preferredNavigationApp } = useContext(AppContext);
+  const { preferredNavigationApp, darkMode } = useContext(AppContext);
   
   // Get the fuel info for the selected type
   const fuelInfo = station.fuels.find(fuel => fuel.type === selectedFuelType);
@@ -122,7 +125,7 @@ const StationCard: React.FC<StationCardProps> = ({
   if (compact) {
     return (
       <TouchableOpacity 
-        className="flex-row justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-lg mb-2"
+        className={`flex-row justify-between items-center p-3 rounded-lg mb-2 ${isSelected ? 'bg-slate-100 dark:bg-slate-700' : 'bg-white dark:bg-slate-800'}`}
         onPress={openInMaps}
       >
         <View className="flex-row items-center flex-1">
@@ -157,7 +160,7 @@ const StationCard: React.FC<StationCardProps> = ({
   
   // Full view for the main station card
   return (
-    <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-3 shadow-sm">
+    <View className={`rounded-lg p-4 mb-3 shadow-sm ${isSelected ? 'bg-slate-50 dark:bg-slate-700' : 'bg-white dark:bg-slate-800'}`}>
       {/* Header with brand and favorite button */}
       <View className="flex-row justify-between items-center mb-2">
         <View className="flex-row items-center">

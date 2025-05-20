@@ -1,67 +1,84 @@
 // MapNative.tsx
-/*import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import MapView, { Circle, Marker } from 'react-native-maps';
+import { Station } from './Map.types';
 
-import { MapProps } from './Map.types';
+interface MapProps {
+  stations: Station[];
+  userLocation: { latitude: number; longitude: number };
+  selectedFuelType: string;
+  onMarkerPress: (station: Station | null) => void;
+  searchRadius: number;
+  mapRef: React.RefObject<any>;
+}
 
-const MapNative: React.FC<MapProps> = ({
-  stations,
-  userLocation,
-  selectedFuelType,
-  onMarkerPress,
-}) => {
+const MapNative: React.FC<MapProps> = (props) => {
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+
+  const handleMarkerPress = (station: Station) => {
+    setSelectedStationId(station.id);
+    props.onMarkerPress(station);
+  };
+
+  const handleMapPress = () => {
+    setSelectedStationId(null);
+    props.onMarkerPress(null);
+  };
+
   return (
     <View style={styles.container}>
       <MapView
-        provider={PROVIDER_GOOGLE}
+        ref={props.mapRef}
         style={styles.map}
         initialRegion={{
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
+          latitude: props.userLocation.latitude,
+          longitude: props.userLocation.longitude,
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}
+        showsUserLocation
+        showsMyLocationButton
+        showsCompass
+        showsScale
+        onPress={handleMapPress}
       >
+        {/* User Location Marker */}
         <Marker
           coordinate={{
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
+            latitude: props.userLocation.latitude,
+            longitude: props.userLocation.longitude,
           }}
           pinColor="blue"
-        >
-          <Callout>
-            <Text>Você está aqui</Text>
-          </Callout>
-        </Marker>
+          title="Você está aqui"
+        />
 
-        {stations.map((station: typeof stations[number]) => {
-          const fuel = station.fuels.find((f: typeof station.fuels[number]) => f.type === selectedFuelType);
-          
-          return (
-            <Marker
-              key={station.id}
-              coordinate={{
-                latitude: station.latitude,
-                longitude: station.longitude,
-              }}
-              onPress={() => onMarkerPress && onMarkerPress(station)}
-            >
-              <Callout>
-                <View style={styles.callout}>
-                  <Text style={styles.stationName}>{station.name}</Text>
-                  {fuel ? (
-                    <Text>
-                      {selectedFuelType}: {fuel.price.toFixed(3)} €/L
-                    </Text>
-                  ) : (
-                    <Text>Preço não disponível</Text>
-                  )}
-                </View>
-              </Callout>
-            </Marker>
-          );
-        })}
+        {/* Station Markers */}
+        {props.stations.map((station) => (
+          <Marker
+            key={station.id}
+            coordinate={{
+              latitude: station.latitude,
+              longitude: station.longitude,
+            }}
+            pinColor={selectedStationId === station.id ? "red" : "green"}
+            onPress={() => handleMarkerPress(station)}
+            title={station.name}
+            description={`${props.selectedFuelType}: ${station.fuels.find(f => f.type === props.selectedFuelType)?.price.toFixed(3)}€`}
+          />
+        ))}
+
+        {/* Search Radius Circle */}
+        <Circle
+          center={{
+            latitude: props.userLocation.latitude,
+            longitude: props.userLocation.longitude,
+          }}
+          radius={props.searchRadius * 1000}
+          strokeColor="rgba(59, 130, 246, 0.5)"
+          fillColor="rgba(59, 130, 246, 0.1)"
+          strokeWidth={2}
+        />
       </MapView>
     </View>
   );
@@ -72,17 +89,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   map: {
-    width: '100%',
-    height: '100%',
-  },
-  callout: {
-    padding: 5,
-    maxWidth: 200,
-  },
-  stationName: {
-    fontWeight: 'bold',
-    marginBottom: 5,
+    flex: 1,
   },
 });
 
-export default MapNative;*/
+export default MapNative;

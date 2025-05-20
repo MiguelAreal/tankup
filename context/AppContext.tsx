@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useEffect, useState } from 'react';
+import { useColorScheme } from 'react-native';
 
 // Definindo os tipos para o contexto
 type NavigationAppType = 'google_maps' | 'waze' | 'apple_maps';
@@ -33,7 +34,8 @@ interface AppProviderProps {
 
 // Provider do contexto
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  const [darkMode, setDarkMode] = useState<boolean>(defaultValues.darkMode);
+  const systemColorScheme = useColorScheme();
+  const [darkMode, setDarkMode] = useState<boolean>(systemColorScheme === 'dark');
   const [preferredNavigationApp, setPreferredNavigationApp] = useState<NavigationAppType>(
     defaultValues.preferredNavigationApp
   );
@@ -85,7 +87,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
         if (savedDarkMode !== null) {
           setDarkMode(savedDarkMode === 'true');
+        } else {
+          // If no saved preference, use system theme
+          setDarkMode(systemColorScheme === 'dark');
         }
+        
         if (savedNavigationApp !== null) {
           setPreferredNavigationApp(savedNavigationApp as NavigationAppType);
         }
@@ -100,7 +106,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     };
 
     loadSettings();
-  }, []);
+  }, [systemColorScheme]);
 
   if (isLoading) {
     return null;

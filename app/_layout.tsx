@@ -1,5 +1,6 @@
 import { Stack } from "expo-router";
 import "leaflet/dist/leaflet.css";
+import React from "react";
 import { AppProvider } from "../context/AppContext";
 import "../global.css";
 
@@ -8,10 +9,7 @@ export default function Layout() {
     <AppProvider>
       <Stack
         screenOptions={{
-           headerShown: false,
-          contentStyle: {
-            backgroundColor: 'transparent',
-          },
+          headerShown: false,
         }}
       >
         <Stack.Screen 

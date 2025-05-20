@@ -28,6 +28,11 @@ const fuelTypes = [
     id: 'gpl',
     label: 'GPL',
     icon: 'flame',
+  },,
+  {
+    id: 'eletrico',
+    label: 'Elétrico',	
+    icon: 'flash',
   },
 ];
 
@@ -47,7 +52,7 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 4 }}
       >
-        {fuelTypes.map((fuel) => (
+        {fuelTypes.filter(Boolean).map((fuel) => (
           <TouchableOpacity
             key={fuel.id}
             className={`mr-2 px-4 py-3 rounded-lg flex-row items-center ${

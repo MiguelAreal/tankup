@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, SafeAreaView, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -17,42 +16,24 @@ export default function SettingsScreen() {
   } = useContext(AppContext);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [localSettings, setLocalSettings] = useState({
-    darkMode,
-    preferredNavigationApp,
-    searchRadius
-  });
 
   // Sincroniza as configurações locais com o contexto
   useEffect(() => {
-    setLocalSettings({
-      darkMode,
-      preferredNavigationApp,
-      searchRadius
-    });
     setIsLoading(false);
   }, [darkMode, preferredNavigationApp, searchRadius]);
 
-  const saveSettings = async (key: string, value: any) => {
-    try {
-      await AsyncStorage.setItem(key, String(value));
-      console.log(`Configuração ${key} salva:`, value);
-    } catch (error) {
-      console.error(`Erro ao salvar ${key}:`, error);
-    }
+  const handleDarkModeToggle = async (value: boolean) => {
+    console.log('Toggling dark mode to:', value);
+    setDarkMode(value);
   };
-  
-  const handleDarkModeToggle = (value: boolean) => {
-  setDarkMode(value); // Isso agora chama updateDarkMode do contexto
-};
 
-const handleNavigationAppChange = (app: 'google_maps' | 'waze' | 'apple_maps') => {
-  setPreferredNavigationApp(app); // Isso agora chama updateNavigationApp
-};
+  const handleNavigationAppChange = (app: 'google_maps' | 'waze' | 'apple_maps') => {
+    setPreferredNavigationApp(app);
+  };
 
-const handleRadiusChange = (radius: number) => {
-  setSearchRadius(radius); // Isso agora chama updateSearchRadius
-};
+  const handleRadiusChange = (radius: number) => {
+    setSearchRadius(radius);
+  };
   
   if (isLoading) {
     return (
@@ -65,10 +46,10 @@ const handleRadiusChange = (radius: number) => {
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900">
       <ScrollView className="flex-1">
-        {/* Botão Voltar - modificado para navegar para a raiz */}
+        {/* Botão Voltar */}
         <View className="px-4 py-2">
           <TouchableOpacity 
-            onPress={() => router.push('/')} // Sempre navega para a raiz
+            onPress={() => router.push('/')}
             className="flex-row items-center"
           >
             <Ionicons name="arrow-back" size={24} color="#2563eb" />
@@ -87,10 +68,10 @@ const handleRadiusChange = (radius: number) => {
                 </Text>
               </View>
               <Switch
-                value={localSettings.darkMode} // Usa o estado local
+                value={darkMode}
                 onValueChange={handleDarkModeToggle}
                 trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
-                thumbColor={localSettings.darkMode ? '#ffffff' : '#f3f4f6'}
+                thumbColor={darkMode ? '#ffffff' : '#f3f4f6'}
                 testID="darkModeSwitch"
               />
             </View>
@@ -104,7 +85,7 @@ const handleRadiusChange = (radius: number) => {
             
             <TouchableOpacity 
               className={`flex-row items-center p-3 rounded-lg mb-2 ${
-                localSettings.preferredNavigationApp === 'google_maps' 
+                preferredNavigationApp === 'google_maps' 
                   ? 'bg-blue-100 dark:bg-blue-900' 
                   : 'bg-transparent'
               }`}
@@ -114,11 +95,11 @@ const handleRadiusChange = (radius: number) => {
               <Ionicons 
                 name="navigate" 
                 size={24} 
-                color={localSettings.preferredNavigationApp === 'google_maps' ? '#2563eb' : '#9ca3af'} 
+                color={preferredNavigationApp === 'google_maps' ? '#2563eb' : '#9ca3af'} 
               />
               <Text 
                 className={`ml-3 ${
-                  localSettings.preferredNavigationApp === 'google_maps'
+                  preferredNavigationApp === 'google_maps'
                     ? 'text-blue-600 dark:text-blue-400 font-medium'
                     : 'text-slate-600 dark:text-slate-400'
                 }`}
@@ -129,7 +110,7 @@ const handleRadiusChange = (radius: number) => {
             
             <TouchableOpacity 
               className={`flex-row items-center p-3 rounded-lg mb-2 ${
-                localSettings.preferredNavigationApp === 'waze' 
+                preferredNavigationApp === 'waze' 
                   ? 'bg-blue-100 dark:bg-blue-900' 
                   : 'bg-transparent'
               }`}
@@ -139,11 +120,11 @@ const handleRadiusChange = (radius: number) => {
               <Ionicons 
                 name="navigate" 
                 size={24} 
-                color={localSettings.preferredNavigationApp === 'waze' ? '#2563eb' : '#9ca3af'} 
+                color={preferredNavigationApp === 'waze' ? '#2563eb' : '#9ca3af'} 
               />
               <Text 
                 className={`ml-3 ${
-                  localSettings.preferredNavigationApp === 'waze'
+                  preferredNavigationApp === 'waze'
                     ? 'text-blue-600 dark:text-blue-400 font-medium'
                     : 'text-slate-600 dark:text-slate-400'
                 }`}
@@ -154,7 +135,7 @@ const handleRadiusChange = (radius: number) => {
             
             <TouchableOpacity 
               className={`flex-row items-center p-3 rounded-lg ${
-                localSettings.preferredNavigationApp === 'apple_maps' 
+                preferredNavigationApp === 'apple_maps' 
                   ? 'bg-blue-100 dark:bg-blue-900'
                   : 'bg-transparent'
               }`}
@@ -164,11 +145,11 @@ const handleRadiusChange = (radius: number) => {
               <Ionicons 
                 name="navigate" 
                 size={24} 
-                color={localSettings.preferredNavigationApp === 'apple_maps' ? '#2563eb' : '#9ca3af'} 
+                color={preferredNavigationApp === 'apple_maps' ? '#2563eb' : '#9ca3af'} 
               />
               <Text 
                 className={`ml-3 ${
-                  localSettings.preferredNavigationApp === 'apple_maps'
+                  preferredNavigationApp === 'apple_maps'
                     ? 'text-blue-600 dark:text-blue-400 font-medium'
                     : 'text-slate-600 dark:text-slate-400'
                 }`}
@@ -189,7 +170,7 @@ const handleRadiusChange = (radius: number) => {
                 <TouchableOpacity
                   key={radius}
                   className={`py-2 px-4 rounded-lg ${
-                    localSettings.searchRadius === radius
+                    searchRadius === radius
                       ? 'bg-blue-600 dark:bg-blue-500'
                       : 'bg-slate-200 dark:bg-slate-700'
                   }`}
@@ -198,7 +179,7 @@ const handleRadiusChange = (radius: number) => {
                 >
                   <Text
                     className={`${
-                      localSettings.searchRadius === radius
+                      searchRadius === radius
                         ? 'text-white font-medium'
                         : 'text-slate-700 dark:text-slate-300'
                     }`}

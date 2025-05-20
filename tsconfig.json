@@ -1,7 +1,16 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "jsx": "react",
     "types": ["expo-router"],
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "lib": ["dom", "esnext"],
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "allowJs": true,
     "strict": true,
     "paths": {
       "@/*": [
@@ -10,10 +19,11 @@
     }
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "nativewind-env.d.ts"
-, "app/components/Map/MapNative.tsx"  ]
+  "**/*.ts",
+  "**/*.tsx",
+  ".expo/types/**/*.ts",
+  "expo-env.d.ts",
+  "nativewind-env.d.ts"
+]
+
 }
