@@ -11,20 +11,47 @@
     "noStationsFound": "No stations found",
     "locationRequired": "Location permission is required to show nearby stations",
     "useSearch": "Please use the search option to find stations",
+    "sortBy": {
+      "mais_caro": "Most expensive",
+      "mais_barato": "Cheapest",
+      "mais_longe": "Furthest",
+      "mais_perto": "Closest"
+    },
     "fuelType": {
-      "Gasóleo simples": "Diesel",
-      "Gasóleo especial": "Special Diesel",
-      "Gasolina simples 95": "Simple Gasoline 95",
-      "Gasolina especial 95": "Special Gasoline 95",
-      "Gasolina 98": "Gasoline 98",
       "Biodiesel B15": "Biodiesel B15",
-      "GPL Auto": "GPL Auto"
-    }
+      "GNC (gás natural comprimido) - €/kg": "CNG (compressed natural gas) - €/kg",
+      "GNC (gás natural comprimido) - €/m3": "CNG (compressed natural gas) - €/m3",
+      "GNL (gás natural liquefeito) - €/kg": "LNG (liquefied natural gas) - €/kg",
+      "GPL Auto": "LPG Auto",
+      "Gasolina 95 (até setembro 2021)": "Gasoline 95 (until September 2021)",
+      "Gasolina 98": "Gasoline 98",
+      "Gasolina aditivada": "Additive Gasoline",
+      "Gasolina de mistura (motores a 2 tempos)": "Mix Gasoline (2-stroke engines)",
+      "Gasolina especial 95": "Special Gasoline 95",
+      "Gasolina especial 98": "Special Gasoline 98",
+      "Gasolina simples 95": "Simple Gasoline 95",
+      "Gasóleo (até setembro 2021)": "Diesel (until September 2021)",
+      "Gasóleo colorido": "Colored Diesel",
+      "Gasóleo de aquecimento": "Heating Diesel",
+      "Gasóleo especial": "Special Diesel",
+      "Gasóleo simples": "Simple Diesel",
+      "Petróleo": "Oil"
+    },
+    "open": "Open",
+    "closed": "Closed",
+    "opensAt": "Opens at",
+    "openInGoogleMaps": "Open in Google Maps"
   },
   "search": {
     "title": "Search",
-    "placeholder": "Search districts or cities...",
-    "selectDistrict": "Select a district"
+    "placeholder": "Search for a district or city...",
+    "selectDistrict": "Select a district",
+    "district": "District",
+    "municipality": "Municipality",
+    "fuelType": "Fuel Type",
+    "sortBy": "Sort By",
+    "search": "Search",
+    "clear": "Clear Search"
   },
   "station.distance": "Distance",
   "station.noLocationTitle": "Location permission is required to show nearby stations.",

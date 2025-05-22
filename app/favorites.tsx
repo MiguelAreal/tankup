@@ -1,20 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { AppContext } from '../context/AppContext';
+import { useAppContext } from '../context/AppContext';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
-import { Station } from './components/Map/Map.types';
-import StationCard from './components/StationCard';
+import PostoCard from './components/PostoCard';
+import { Posto } from './types/models';
 import { Strings } from './types/strings';
 
 export default function FavoritesScreen() {
   const router = useRouter();
-  const { language, darkMode } = useContext(AppContext);
+  const { language, darkMode, selectedFuelTypes } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
-  const [favorites, setFavorites] = useState<Station[]>([]);
+  const [favorites, setFavorites] = useState<Posto[]>([]);
+  const [selectedFuelType, setSelectedFuelType] = useState(selectedFuelTypes[0] || 'Gasóleo simples');
+
+  // Update selectedFuelType when selectedFuelTypes changes
+  useEffect(() => {
+    if (selectedFuelTypes.length > 0 && !selectedFuelTypes.includes(selectedFuelType)) {
+      setSelectedFuelType(selectedFuelTypes[0]);
+    }
+  }, [selectedFuelTypes]);
 
   // Apply dark mode class to html element
   useEffect(() => {
@@ -66,11 +74,11 @@ export default function FavoritesScreen() {
       <ScrollView className="flex-1 px-4">
         {favorites.length > 0 ? (
           favorites.map((station) => (
-            <StationCard
-              key={station.id}
-              station={station}
-              selectedFuelType="diesel"
-              showFavoriteButton={true}
+            <PostoCard
+              key={station.idDgeg}
+              posto={station}
+              selectedFuelType={selectedFuelType}
+              userLocation={{ latitude: 38.736946, longitude: -9.142685 }}
             />
           ))
         ) : (

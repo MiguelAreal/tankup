@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, SafeAreaView, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { AppContext } from '../context/AppContext';
+import { useAppContext } from '../context/AppContext';
+import fuelTypesData from './assets/fuelTypes.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
 import { Strings } from './types/strings';
@@ -28,8 +29,10 @@ export default function SettingsScreen() {
     setMapProvider,
     isLoading: contextLoading,
     language,
-    setLanguage
-  } = useContext(AppContext);
+    setLanguage,
+    selectedFuelTypes,
+    setSelectedFuelTypes
+  } = useAppContext();
   
   const [isLoading, setIsLoading] = useState(true);
   const [isMapDropdownOpen, setIsMapDropdownOpen] = useState(false);
@@ -78,6 +81,19 @@ export default function SettingsScreen() {
   
   const handleBackPress = () => {
     router.replace('/');
+  };
+
+  const handleFuelTypeToggle = (fuelType: string) => {
+    const isSelected = selectedFuelTypes.includes(fuelType);
+    if (isSelected) {
+      if (selectedFuelTypes.length > 1) {
+        setSelectedFuelTypes(selectedFuelTypes.filter(type => type !== fuelType));
+      }
+    } else {
+      if (selectedFuelTypes.length < 6) {
+        setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
+      }
+    }
   };
 
   if (isLoading || contextLoading) {
@@ -319,6 +335,53 @@ export default function SettingsScreen() {
               >
                 <Text className={language === 'en' ? 'text-white font-medium' : 'text-slate-700'}>English</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Fuel Type Selection */}
+          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
+            <View className="flex-row items-center mb-2">
+              <Ionicons name="water" size={24} color="#2563eb" />
+              <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                {strings.settings.fuelType}
+              </Text>
+            </View>
+            
+            <Text className="text-slate-600 dark:text-slate-400 mb-4">
+              {language === 'en' 
+                ? 'Select up to 6 fuel types to display in the main screen'
+                : 'Selecione até 6 tipos de combustível para exibir na tela principal'}
+            </Text>
+
+            <View className="flex-row flex-wrap">
+              {fuelTypesData.types.map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  className={`mr-2 mb-2 p-2 px-4 rounded-lg ${
+                    selectedFuelTypes.includes(type.id)
+                      ? 'bg-blue-600'
+                      : 'bg-slate-200 dark:bg-slate-700'
+                  }`}
+                  onPress={() => handleFuelTypeToggle(type.id)}
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons
+                      name={type.icon as any}
+                      size={20}
+                      color={selectedFuelTypes.includes(type.id) ? '#ffffff' : '#64748b'}
+                    />
+                    <Text
+                      className={`ml-2 ${
+                        selectedFuelTypes.includes(type.id)
+                          ? 'text-white font-medium'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 

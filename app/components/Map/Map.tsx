@@ -1,7 +1,7 @@
 // app/components/Map/Map.tsx
 import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import { MapProps } from './Map.types';
+import { MapProps } from '../../types/models';
 
 // Import platform-specific components directly
 import MapNative from './Map.native';

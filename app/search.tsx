@@ -1,293 +1,460 @@
 import { Ionicons } from '@expo/vector-icons';
-import Voice, { SpeechResultsEvent } from '@react-native-voice/voice';
 import { useRouter } from 'expo-router';
-import React, { useContext, useEffect, useState } from 'react';
-import { SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { AppContext } from '../context/AppContext';
-import locations from './assets/locations.json';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAppContext } from '../context/AppContext';
+import fuelTypesData from './assets/fuelTypes.json';
+import locationsData from './assets/locations.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
 import { Strings } from './types/strings';
+import { fetchStationsByLocation } from './utils/api';
 
-type SearchResult = {
-  type: 'district' | 'city';
+type District = {
   id: string;
   name: string;
-  districtName?: string;
+  cities: string[];
 };
+
+type Screen = 'districts' | 'cities';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { language, darkMode } = useContext(AppContext);
+  const { language, selectedFuelTypes } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
+  
   const [searchQuery, setSearchQuery] = useState('');
-  const [isListening, setIsListening] = useState(false);
-  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
-  const [isVoiceAvailable, setIsVoiceAvailable] = useState(false);
-
-  // Apply dark mode class to html element
-  useEffect(() => {
-    if (typeof document !== 'undefined') {
-      const html = document.documentElement;
-      if (darkMode) {
-        html.classList.add('dark');
-      } else {
-        html.classList.remove('dark');
-      }
-    }
-  }, [darkMode]);
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedFuelType, setSelectedFuelType] = useState('');
+  const [selectedSort, setSelectedSort] = useState<'mais_caro' | 'mais_barato'>('mais_barato');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showFuelTypeModal, setShowFuelTypeModal] = useState(false);
+  const [showSortModal, setShowSortModal] = useState(false);
+  const [filteredDistricts, setFilteredDistricts] = useState<District[]>(locationsData.districts);
+  const [currentScreen, setCurrentScreen] = useState<Screen>('districts');
+  const [filteredCities, setFilteredCities] = useState<{ district: District; city: string }[]>([]);
 
   useEffect(() => {
-    const initVoice = async () => {
-      try {
-        await Voice.isAvailable();
-        setIsVoiceAvailable(true);
-        Voice.onSpeechResults = onSpeechResults;
-        Voice.onSpeechError = onSpeechError;
-      } catch (error) {
-        console.error('Voice recognition not available:', error);
-        setIsVoiceAvailable(false);
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      if (currentScreen === 'districts') {
+        // Search in both districts and cities
+        const districtMatches = locationsData.districts.filter(district => 
+          district.name.toLowerCase().includes(query)
+        );
+        
+        const cityMatches = locationsData.districts.flatMap(district => 
+          district.cities
+            .filter(city => city.toLowerCase().includes(query))
+            .map(city => ({
+              district,
+              city
+            }))
+        );
+
+        setFilteredDistricts(districtMatches);
+        setFilteredCities(cityMatches);
+      } else if (selectedDistrict) {
+        const filtered = selectedDistrict.cities
+          .filter(city => city.toLowerCase().includes(query))
+          .map(city => ({
+            district: selectedDistrict,
+            city
+          }));
+        setFilteredCities(filtered);
       }
-    };
-
-    initVoice();
-
-    return () => {
-      if (isVoiceAvailable) {
-        Voice.destroy().then(() => {
-          Voice.removeAllListeners();
-        }).catch(error => {
-          console.error('Error cleaning up voice:', error);
-        });
-      }
-    };
-  }, []);
-
-  const onSpeechResults = (e: SpeechResultsEvent) => {
-    if (e.value && e.value.length > 0) {
-      setSearchQuery(e.value[0]);
-    }
-  };
-
-  const onSpeechError = (e: any) => {
-    console.error('Speech recognition error:', e);
-    setIsListening(false);
-  };
-
-  // Combine districts and cities into a single searchable list
-  const searchResults: SearchResult[] = React.useMemo(() => {
-    if (!searchQuery) return [];
-
-    const query = searchQuery.toLowerCase();
-    const results: SearchResult[] = [];
-
-    // Add matching districts
-    locations.districts.forEach(district => {
-      if (district.name.toLowerCase().includes(query)) {
-        results.push({
-          type: 'district',
-          id: district.id,
-          name: district.name
-        });
-      }
-
-      // Add matching cities from this district
-      district.cities.forEach(city => {
-        if (city.toLowerCase().includes(query)) {
-          results.push({
-            type: 'city',
-            id: city,
-            name: city,
-            districtName: district.name
-          });
-        }
-      });
-    });
-
-    // Sort results: districts first, then cities alphabetically
-    return results.sort((a, b) => {
-      if (a.type === b.type) {
-        return a.name.localeCompare(b.name);
-      }
-      return a.type === 'district' ? -1 : 1;
-    });
-  }, [searchQuery]);
-
-  const handleVoiceInput = async () => {
-    if (!isVoiceAvailable) {
-      console.log('Voice recognition is not available');
-      return;
-    }
-
-    try {
-      setIsListening(true);
-      await Voice.start(language === 'pt' ? 'pt-PT' : 'en-US');
-    } catch (error) {
-      console.error('Error starting voice recognition:', error);
-      setIsListening(false);
-    }
-  };
-
-  const stopListening = async () => {
-    if (!isVoiceAvailable) return;
-
-    try {
-      await Voice.stop();
-    } catch (error) {
-      console.error('Error stopping voice recognition:', error);
-    } finally {
-      setIsListening(false);
-    }
-  };
-
-  const handleResultPress = (result: SearchResult) => {
-    if (result.type === 'district') {
-      setSelectedDistrict(result.id);
-      setSearchQuery(''); // Clear search when selecting a district
     } else {
-      setSelectedDistrict(null); // Clear selected district when choosing a city
-      // Handle city selection
-      router.replace('/'); // Use replace instead of back to ensure we go to the map
+      if (currentScreen === 'districts') {
+        setFilteredDistricts(locationsData.districts);
+        setFilteredCities([]);
+      } else if (selectedDistrict) {
+        setFilteredCities(selectedDistrict.cities.map(city => ({
+          district: selectedDistrict,
+          city
+        })));
+      }
     }
+  }, [searchQuery, currentScreen, selectedDistrict]);
+
+  const handleDistrictSelect = (district: District) => {
+    setSelectedDistrict(district);
+    setFilteredCities(district.cities.map(city => ({
+      district,
+      city: city
+    })));
+    setCurrentScreen('cities');
+    setSearchQuery('');
+  };
+
+  const handleCitySelect = (cityData: { district: District; city: string }) => {
+    setSelectedDistrict(cityData.district);
+    setSelectedCity(cityData.city);
+    setCurrentScreen('cities');
   };
 
   const handleBackPress = () => {
-    router.replace('/');
+    if (currentScreen === 'cities') {
+      setCurrentScreen('districts');
+      setSelectedDistrict(null);
+      setSearchQuery('');
+    } else {
+      router.replace('/');
+    }
   };
 
-  // Get cities for the selected district (only used when not searching)
-  const districtCities = React.useMemo(() => {
-    if (!selectedDistrict || searchQuery) return [];
-    const district = locations.districts.find(d => d.id === selectedDistrict);
-    return district?.cities || [];
-  }, [selectedDistrict, searchQuery]);
+  const handleFuelTypeSelect = (type: string) => {
+    setSelectedFuelType(type);
+    setShowFuelTypeModal(false);
+    
+    // If we already have a district/city selected, trigger a new search
+    if (selectedDistrict || selectedCity) {
+      handleSearch(type);
+    }
+  };
+
+  const handleSortSelect = (sort: 'mais_caro' | 'mais_barato') => {
+    setSelectedSort(sort);
+    setShowSortModal(false);
+    
+    // If we already have a district/city selected, trigger a new search
+    if (selectedDistrict || selectedCity) {
+      handleSearch(undefined, sort);
+    }
+  };
+
+  const handleSearch = async (newFuelType?: string, newSort?: 'mais_caro' | 'mais_barato') => {
+    const fuelTypeToUse = newFuelType || selectedFuelType;
+    const sortToUse = newSort || selectedSort;
+    
+    if (!fuelTypeToUse) {
+      setError(language === 'en' ? 'Please select a fuel type' : 'Por favor, selecione um tipo de combustível');
+      return;
+    }
+
+    if (!selectedDistrict && !selectedCity) {
+      setError(language === 'en' ? 'Please select a district or city' : 'Por favor, selecione um distrito ou cidade');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const results = await fetchStationsByLocation({
+        distrito: selectedDistrict?.name,
+        municipio: selectedCity || undefined,
+        fuelType: fuelTypeToUse,
+        sortBy: sortToUse
+      });
+      
+      router.replace({
+        pathname: '/',
+        params: { 
+          searchResults: JSON.stringify(results),
+          searchType: 'location',
+          distrito: selectedDistrict?.name,
+          municipio: selectedCity,
+          fuelType: fuelTypeToUse,
+          sortBy: sortToUse
+        }
+      });
+    } catch (err) {
+      setError(language === 'en' ? 'Error searching for stations' : 'Erro ao pesquisar postos');
+      console.error('Search error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderFuelTypeModal = () => (
+    <Modal
+      visible={showFuelTypeModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowFuelTypeModal(false)}
+    >
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-white dark:bg-slate-800 rounded-t-xl p-4">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-xl font-bold text-slate-800 dark:text-slate-200">
+              {strings.search.fuelType}
+            </Text>
+            <TouchableOpacity onPress={() => setShowFuelTypeModal(false)}>
+              <Ionicons name="close" size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView className="max-h-96">
+            {fuelTypesData.types
+              .filter(type => selectedFuelTypes.includes(type.id))
+              .map((type) => (
+                <TouchableOpacity
+                  key={type.id}
+                  className={`p-4 border-b border-slate-200 dark:border-slate-700 ${
+                    selectedFuelType === type.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  }`}
+                  onPress={() => handleFuelTypeSelect(type.id)}
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons
+                      name={type.icon as any}
+                      size={24}
+                      color={selectedFuelType === type.id ? '#2563eb' : '#64748b'}
+                    />
+                    <Text className={`ml-3 text-lg ${
+                      selectedFuelType === type.id
+                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : 'text-slate-700 dark:text-slate-300'
+                    }`}>
+                      {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderSortModal = () => (
+    <Modal
+      visible={showSortModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowSortModal(false)}
+    >
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-white dark:bg-slate-800 rounded-t-xl p-4">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-xl font-bold text-slate-800 dark:text-slate-200">
+              {strings.search.sortBy}
+            </Text>
+            <TouchableOpacity onPress={() => setShowSortModal(false)}>
+              <Ionicons name="close" size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+          <View>
+            <TouchableOpacity
+              className={`p-4 border-b border-slate-200 dark:border-slate-700 ${
+                selectedSort === 'mais_barato' ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+              }`}
+              onPress={() => handleSortSelect('mais_barato')}
+            >
+              <View className="flex-row items-center">
+                <Ionicons
+                  name="trending-down"
+                  size={24}
+                  color={selectedSort === 'mais_barato' ? '#2563eb' : '#64748b'}
+                />
+                <Text className={`ml-3 text-lg ${
+                  selectedSort === 'mais_barato'
+                    ? 'text-blue-600 dark:text-blue-400 font-medium'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}>
+                  {strings.station.sortBy.mais_barato}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className={`p-4 ${
+                selectedSort === 'mais_caro' ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+              }`}
+              onPress={() => handleSortSelect('mais_caro')}
+            >
+              <View className="flex-row items-center">
+                <Ionicons
+                  name="trending-up"
+                  size={24}
+                  color={selectedSort === 'mais_caro' ? '#2563eb' : '#64748b'}
+                />
+                <Text className={`ml-3 text-lg ${
+                  selectedSort === 'mais_caro'
+                    ? 'text-blue-600 dark:text-blue-400 font-medium'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}>
+                  {strings.station.sortBy.mais_caro}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900">
       {/* Header */}
-      <View className="px-4 py-2">
+      <View className="px-4 py-2 flex-row items-center justify-between">
         <TouchableOpacity 
           onPress={handleBackPress}
           className="flex-row items-center"
         >
           <Ionicons name="arrow-back" size={24} color="#2563eb" />
           <Text className="ml-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
-            {strings.search.title}
+            {currentScreen === 'districts' ? strings.search.district : selectedDistrict?.name}
           </Text>
         </TouchableOpacity>
-      </View>
 
-      {/* Search Input */}
-      <View className="p-4">
-        <View className="bg-white dark:bg-slate-800 rounded-lg flex-row items-center px-4">
-          <Ionicons name="search" size={20} color="#64748b" />
-          <TextInput
-            className="flex-1 py-3 px-2 text-slate-800 dark:text-slate-200"
-            placeholder={strings.search.placeholder}
-            placeholderTextColor="#64748b"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#64748b" />
-            </TouchableOpacity>
-          ) : isVoiceAvailable ? (
-            <TouchableOpacity 
-              onPress={isListening ? stopListening : handleVoiceInput}
-              className={`p-2 ${isListening ? 'bg-red-100 dark:bg-red-900' : ''}`}
-            >
-              <Ionicons 
-                name={isListening ? "mic" : "mic-outline"} 
-                size={20} 
-                color={isListening ? "#ef4444" : "#64748b"} 
-              />
-            </TouchableOpacity>
-          ) : null}
+        <View className="flex-row">
+          <TouchableOpacity
+            onPress={() => setShowFuelTypeModal(true)}
+            className="mr-2 bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
+          >
+            <Ionicons
+              name={selectedFuelType ? "checkmark-circle" : "options"}
+              size={20}
+              color={selectedFuelType ? "#2563eb" : "#64748b"}
+            />
+            <Text className={`ml-2 ${
+              selectedFuelType
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-700 dark:text-slate-300'
+            }`}>
+              {selectedFuelType
+                ? strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]
+                : strings.search.fuelType}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setShowSortModal(true)}
+            className="bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
+          >
+            <Ionicons
+              name={selectedSort === 'mais_barato' ? 'trending-down' : 'trending-up'}
+              size={20}
+              color="#64748b"
+            />
+            <Text className="ml-2 text-slate-700 dark:text-slate-300">
+              {strings.station.sortBy[selectedSort]}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Content */}
+      {/* Search Bar */}
+      <View className="px-4 py-3">
+        <TextInput
+          className="bg-white dark:bg-slate-800 p-4 rounded-lg text-slate-800 dark:text-slate-200 text-base"
+          placeholder={currentScreen === 'districts' ? strings.search.placeholder : strings.search.municipality}
+          placeholderTextColor="#94a3b8"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      {/* List */}
       <ScrollView className="flex-1 px-4">
-        {searchQuery.length > 0 ? (
-          // Mostrar resultados de pesquisa globais (distritos + cidades)
-          <View>
-            {searchResults.map((result) => (
-              <TouchableOpacity
-                key={`${result.type}-${result.id}`}
-                className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-2"
-                onPress={() => handleResultPress(result)}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons 
-                    name={result.type === 'district' ? 'location' : 'location-outline'} 
-                    size={20} 
-                    color="#64748b" 
-                    className="mr-2"
-                  />
-                  <View>
-                    <Text className="text-slate-800 dark:text-slate-200 font-medium">
-                      {result.name}
+        {currentScreen === 'districts' ? (
+          <>
+            {/* Show matching cities first if there's a search query */}
+            {searchQuery && filteredCities.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                  {strings.search.municipality}
+                </Text>
+                {filteredCities.map((cityData) => (
+                  <TouchableOpacity
+                    key={`${cityData.district.id}-${cityData.city}`}
+                    className="p-4 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                    onPress={() => handleCitySelect(cityData)}
+                  >
+                    <Text className="text-lg text-slate-800 dark:text-slate-200 font-medium">
+                      {cityData.city}
                     </Text>
-                    {result.type === 'city' && result.districtName && (
-                      <Text className="text-slate-500 dark:text-slate-400 text-sm">
-                        {result.districtName}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : !selectedDistrict ? (
-          // Districts List
-          <View>
-            <Text className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
-              {strings.search.selectDistrict}
-            </Text>
-            {locations.districts.map(district => (
-              <TouchableOpacity
-                key={district.id}
-                className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-2"
-                onPress={() => setSelectedDistrict(district.id)}
-              >
-                <Text className="text-slate-800 dark:text-slate-200 font-medium">
-                  {district.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          // Cities List for selected district
-          <View>
-            <View className="flex-row items-center mb-4">
-              <TouchableOpacity
-                onPress={() => setSelectedDistrict(null)}
-                className="mr-2"
-              >
-                <Ionicons name="arrow-back" size={24} color="#64748b" />
-              </TouchableOpacity>
-              <Text className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                {locations.districts.find(d => d.id === selectedDistrict)?.name}
+                    <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                      {cityData.district.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Show districts */}
+            <View>
+              <Text className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                {strings.search.district}
               </Text>
+              {filteredDistricts.map((district) => (
+                <TouchableOpacity
+                  key={district.id}
+                  className="p-4 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                  onPress={() => handleDistrictSelect(district)}
+                >
+                  <Text className="text-lg text-slate-800 dark:text-slate-200 font-medium">
+                    {district.name}
+                  </Text>
+                  <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    {district.cities.length} {strings.search.municipality.toLowerCase()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            {districtCities.map(city => (
-              <TouchableOpacity
-                key={city}
-                className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-2"
-                onPress={() => {
-                  setSelectedDistrict(null); // Clear selected district when choosing a city
-                  router.replace('/'); // Use replace instead of back to ensure we go to the map
-                }}
-              >
-                <Text className="text-slate-800 dark:text-slate-200 font-medium">
-                  {city}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          </>
+        ) : (
+          // Cities List
+          filteredCities.map((cityData) => (
+            <TouchableOpacity
+              key={`${cityData.district.id}-${cityData.city}`}
+              className={`p-4 mb-3 rounded-lg shadow-sm ${
+                selectedCity === cityData.city
+                  ? 'bg-blue-600'
+                  : 'bg-white dark:bg-slate-800'
+              }`}
+              onPress={() => setSelectedCity(cityData.city)}
+            >
+              <Text className={`text-lg font-medium ${
+                selectedCity === cityData.city
+                  ? 'text-white'
+                  : 'text-slate-800 dark:text-slate-200'
+              }`}>
+                {cityData.city}
+              </Text>
+              <Text className={`text-sm mt-1 ${
+                selectedCity === cityData.city
+                  ? 'text-blue-100'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}>
+                {cityData.district.name}
+              </Text>
+            </TouchableOpacity>
+          ))
         )}
       </ScrollView>
+
+      {/* Search Button */}
+      {currentScreen === 'cities' && (
+        <View className="p-4">
+          <TouchableOpacity
+            className={`p-4 rounded-lg shadow-sm ${
+              selectedFuelType ? 'bg-blue-600' : 'bg-slate-400'
+            }`}
+            onPress={() => handleSearch()}
+            disabled={isLoading || !selectedFuelType}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text className="text-white text-center font-medium text-lg">
+                {strings.search.search}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {error && (
+            <Text className="text-red-500 mt-4 text-center">
+              {error}
+            </Text>
+          )}
+        </View>
+      )}
+
+      {renderFuelTypeModal()}
+      {renderSortModal()}
     </SafeAreaView>
   );
 }

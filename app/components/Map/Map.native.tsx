@@ -2,21 +2,12 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Circle, Marker } from 'react-native-maps';
-import { Station } from './Map.types';
-
-interface MapProps {
-  stations: Station[];
-  userLocation: { latitude: number; longitude: number };
-  selectedFuelType: string;
-  onMarkerPress: (station: Station | null) => void;
-  searchRadius: number;
-  mapRef: React.RefObject<any>;
-}
+import { MapProps, Posto } from '../../types/models';
 
 const MapNative: React.FC<MapProps> = (props) => {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
 
-  const handleMarkerPress = (station: Station) => {
+  const handleMarkerPress = (station: Posto) => {
     setSelectedStationId(station.idDgeg.toString());
     props.onMarkerPress(station);
   };
@@ -39,8 +30,9 @@ const MapNative: React.FC<MapProps> = (props) => {
         }}
         showsUserLocation
         showsMyLocationButton
-        showsCompass
-        showsScale
+        scrollEnabled={props.allowInteraction !== false}
+        zoomEnabled={props.allowInteraction !== false}
+        rotateEnabled={props.allowInteraction !== false}
         onPress={handleMapPress}
       >
         {/* User Location Marker */}

@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, BackHandler, Easing, SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { AppContext } from '../context/AppContext';
+import { useAppContext } from '../context/AppContext';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
 import FuelTypeSelector from './components/FuelTypeSelector';
 import Header from './components/Header';
 import MapComponent from './components/Map/Map';
-import { Station } from './components/Map/Map.types';
-import StationCard from './components/StationCard';
+import PostoCard from './components/PostoCard';
+import { Posto } from './types/models';
 import { Strings } from './types/strings';
 import { fetchNearbyStations } from './utils/api';
 import { isWithinRadius } from './utils/location';
@@ -21,19 +22,35 @@ export default function HomeScreen() {
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const mapRef = useRef<any>(null);
+  const router = useRouter();
+  const params = useLocalSearchParams();
 
-  const { darkMode, searchRadius, language } = useContext(AppContext);
+  const { darkMode, searchRadius, language, selectedFuelTypes } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState<boolean>(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [allStations, setAllStations] = useState<Station[]>([]);
-  const [filteredStations, setFilteredStations] = useState<Station[]>([]);
-  const [selectedFuelType, setSelectedFuelType] = useState('Diesel');
+  const [allStations, setAllStations] = useState<Posto[]>([]);
+  const [filteredStations, setFilteredStations] = useState<Posto[]>([]);
+  const [selectedFuelType, setSelectedFuelType] = useState(selectedFuelTypes[0] || 'Gasóleo simples');
   const [, setBottomSheetVisible] = useState(false);
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [selectedStation, setSelectedStation] = useState<Posto | null>(null);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchParams, setSearchParams] = useState<{
+    distrito?: string;
+    municipio?: string;
+    fuelType?: string;
+    sortBy?: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto';
+  } | null>(null);
 
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
+
+  // Update selectedFuelType when selectedFuelTypes changes
+  useEffect(() => {
+    if (selectedFuelTypes.length > 0 && !selectedFuelTypes.includes(selectedFuelType)) {
+      setSelectedFuelType(selectedFuelTypes[0]);
+    }
+  }, [selectedFuelTypes]);
 
   const animateMapHeight = (toValue: number) => {
     Animated.timing(mapHeight, {
@@ -105,7 +122,7 @@ export default function HomeScreen() {
   // Fetch and filter stations with debouncing
   const fetchAndFilterStations = React.useCallback(async (location: Location.LocationObjectCoords) => {
     try {
-      const data = await fetchNearbyStations<Station[]>(
+      const data = await fetchNearbyStations<Posto[]>(
         location.latitude,
         location.longitude,
         searchRadius * 1000,
@@ -167,24 +184,83 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Fetch stations when fuel type changes or location updates, with debouncing
+  // Modify the fetchAndFilterStations effect to respect search state
   useEffect(() => {
-    if (!location) return;
+    if (!location || isSearchActive) return;
     
     const timeoutId = setTimeout(() => {
       fetchAndFilterStations(location.coords);
     }, 1000); // Debounce for 1 second
 
     return () => clearTimeout(timeoutId);
-  }, [selectedFuelType, location, fetchAndFilterStations]);
+  }, [selectedFuelType, location, fetchAndFilterStations, isSearchActive]);
+
+  // Handle search results
+  useEffect(() => {
+    if (params.searchResults) {
+      try {
+        const results = JSON.parse(params.searchResults as string) as Posto[];
+        setFilteredStations(results);
+        setAllStations(results);
+        setIsSearchActive(true);
+        setSearchParams({
+          distrito: params.distrito as string,
+          municipio: params.municipio as string,
+          fuelType: params.fuelType as string,
+          sortBy: params.sortBy as 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto'
+        });
+      } catch (error) {
+        console.error('Error parsing search results:', error);
+      }
+    }
+  }, [params]);
+
+  // Clear search and resume normal operation
+  const clearSearch = () => {
+    setIsSearchActive(false);
+    setSearchParams(null);
+    if (location) {
+      fetchAndFilterStations(location.coords);
+    }
+  };
 
   // Handle fuel type selection
   const handleFuelTypeChange = (fuelType: string) => {
     setSelectedFuelType(fuelType);
   };
 
+  const handleSortChange = (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => {
+    if (isSearchActive && searchParams) {
+      // If we're in search mode, update the search params and trigger a new search
+      setSearchParams({
+        ...searchParams,
+        sortBy: sort as 'mais_caro' | 'mais_barato' // Only these two are supported by the API
+      });
+      // Trigger a new search with updated sort
+      handleSearch(searchParams.distrito, searchParams.municipio, searchParams.fuelType, sort as 'mais_caro' | 'mais_barato');
+    }
+  };
+
+  const handleSearch = async (distrito?: string, municipio?: string, fuelType?: string, sortBy?: 'mais_caro' | 'mais_barato') => {
+    if (!distrito && !municipio) return;
+    
+    try {
+      const results = await fetchNearbyStations<Posto[]>(
+        location?.coords.latitude || 0,
+        location?.coords.longitude || 0,
+        searchRadius * 1000,
+        fuelType || selectedFuelType
+      );
+      
+      setFilteredStations(results);
+      setAllStations(results);
+    } catch (error) {
+      console.error('Error searching stations:', error);
+    }
+  };
+
   // Handle marker press
-  const handleMarkerPress = (station: Station | null) => {
+  const handleMarkerPress = (station: Posto | null) => {
     setSelectedStation(station);
     if (station) {
       // Find the index of the station in the sorted list
@@ -256,11 +332,38 @@ export default function HomeScreen() {
       {/* Header */}
       <Header />
 
+      {/* Search Status and Clear Button */}
+      {isSearchActive && (
+        <View className="flex-row items-center justify-between px-4 py-2 bg-blue-50 dark:bg-blue-900/20">
+          <View className="flex-1">
+            <Text className="text-sm text-blue-600 dark:text-blue-400">
+              {searchParams?.distrito && `${searchParams.distrito}`}
+              {searchParams?.municipio && ` > ${searchParams.municipio}`}
+            </Text>
+            {searchParams?.fuelType && (
+              <Text className="text-xs text-slate-600 dark:text-slate-400">
+                {strings.station.fuelType[searchParams.fuelType as keyof typeof strings.station.fuelType]}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity
+            onPress={clearSearch}
+            className="bg-blue-600 px-3 py-1 rounded-lg"
+          >
+            <Text className="text-white text-sm">
+              {strings.search.clear}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Fuel Type Selector */}
       <View className="flex-none">
         <FuelTypeSelector 
           selectedFuelType={selectedFuelType} 
-          onSelectFuelType={handleFuelTypeChange} 
+          onSelectFuelType={handleFuelTypeChange}
+          selectedSort={searchParams?.sortBy || "mais_barato"}
+          onSelectSort={handleSortChange}
         />
       </View>
       
@@ -279,13 +382,11 @@ export default function HomeScreen() {
           <MapComponent
             mapRef={mapRef}
             stations={filteredStations}
-            userLocation={location?.coords || {
-              latitude: 38.736946,
-              longitude: -9.142685
-            }}
+            userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
             selectedFuelType={selectedFuelType}
             onMarkerPress={handleMarkerPress}
-            searchRadius={searchRadius}
+            searchRadius={isSearchActive ? 0 : searchRadius}
+            allowInteraction={!isSearchActive}
           />
           
           <TouchableOpacity
@@ -325,11 +426,10 @@ export default function HomeScreen() {
                   key={station.idDgeg}
                   style={styles.stationCardContainer}
                 >
-                  <StationCard
-                    station={station}
+                  <PostoCard
+                    posto={station}
                     selectedFuelType={selectedFuelType}
-                    userLocation={location?.coords}
-                    isSelected={selectedStation?.idDgeg === station.idDgeg}
+                    userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
                   />
                 </Animated.View>
               ))

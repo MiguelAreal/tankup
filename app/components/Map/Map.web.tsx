@@ -1,42 +1,31 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { AppContext } from '../../../context/AppContext';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import 'leaflet/dist/leaflet.css';
+import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { GeoJSON, useMap } from 'react-leaflet';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAppContext } from '../../../context/AppContext';
 import stringsEN from '../../assets/strings.en.json';
 import stringsPT from '../../assets/strings.pt.json';
+import { MapProps, Posto } from '../../types/models';
 import { Strings } from '../../types/strings';
-import { Station } from './Map.types';
 
-// Map provider options with their display names and URLs
-const mapProviders = {
-  openstreetmap: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors'
-  },
-  cartodb: {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-    attribution: '© CartoDB'
-  },
-  stamen: {
-    url: 'https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.png',
-    attribution: '© Stamen Design'
-  },
-  esri: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '© ESRI'
-  }
-};
+// Component to handle map updates
+function MapUpdater({ center, zoom }: { center?: [number, number]; zoom?: number }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (center) {
+      map.setView(center, zoom || 13);
+    }
+  }, [center, zoom, map]);
 
-interface MapProps {
-  stations: Station[];
-  userLocation: { latitude: number; longitude: number };
-  selectedFuelType: string;
-  onMarkerPress: (station: Station | null) => void;
-  searchRadius: number;
-  mapRef: React.RefObject<any>;
+  return null;
 }
 
 const MapWeb: React.FC<MapProps> = (props) => {
-  const { mapProvider, language } = useContext(AppContext);
+  const { mapProvider, language } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
@@ -48,6 +37,13 @@ const MapWeb: React.FC<MapProps> = (props) => {
     TileLayer: any;
     useMap: any;
   } | null>(null);
+  const [selectedStation, setSelectedStation] = useState<Posto | null>(null);
+  const [districtBoundary, setDistrictBoundary] = useState<any>(null);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const searchParams = useLocalSearchParams();
+  const mapRef = useRef<any>(null);
+  const router = useRouter();
+  const { t } = useTranslation();
 
   useEffect(() => {
     (async () => {
@@ -81,6 +77,61 @@ const MapWeb: React.FC<MapProps> = (props) => {
       }
     })();
   }, []);
+
+  // Handle search results from URL params
+  useEffect(() => {
+    const searchResults = searchParams.searchResults as string;
+    const searchType = searchParams.searchType as string;
+    const distrito = searchParams.distrito as string;
+    const municipio = searchParams.municipio as string;
+
+    if (searchResults && searchType === 'location') {
+      setIsSearchActive(true);
+      try {
+        const results = JSON.parse(searchResults) as Posto[];
+        // Update stations with search results
+        if (results.length > 0) {
+          // Calculate center based on all stations
+          const bounds = results.reduce((acc: any, station: Posto) => {
+            const [lng, lat] = station.localizacao.coordinates;
+            return [
+              Math.min(acc[0], lat),
+              Math.min(acc[1], lng),
+              Math.max(acc[2], lat),
+              Math.max(acc[3], lng)
+            ];
+          }, [90, 180, -90, -180]);
+
+          // Add padding to bounds
+          const padding = 0.1;
+          const center = [
+            (bounds[0] + bounds[2]) / 2,
+            (bounds[1] + bounds[3]) / 2
+          ];
+
+          // Update map view
+          if (mapRef.current) {
+            mapRef.current.setView(center, 12);
+          }
+
+          // Load district/city boundary if available
+          if (distrito || municipio) {
+            // TODO: Load boundary data from your API
+            // This would be a separate API call to get the GeoJSON for the district/city
+            // For now, we'll just show the stations
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing search results:', error);
+      }
+    } else {
+      setIsSearchActive(false);
+    }
+  }, [searchParams]);
+
+  const handleClearSearch = () => {
+    router.replace('/');
+  };
 
   if (isLoading || !components) {
     return (
@@ -180,7 +231,8 @@ const MapWeb: React.FC<MapProps> = (props) => {
     className: ''
   });
 
-  const handleMarkerClick = (station: Station) => {
+  const handleMarkerClick = (station: Posto) => {
+    setSelectedStation(station);
     setSelectedStationId(station.idDgeg.toString());
     props.onMarkerPress(station);
   };
@@ -190,39 +242,110 @@ const MapWeb: React.FC<MapProps> = (props) => {
     props.onMarkerPress(null);
   };
 
+  const getTileLayer = () => {
+    switch (mapProvider) {
+      case 'cartodb':
+        return (
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          />
+        );
+      case 'stamen':
+        return (
+          <TileLayer
+            url="https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}{r}.png"
+            attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+        );
+      case 'esri':
+        return (
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+          />
+        );
+      default:
+        return (
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+        );
+    }
+  };
+
   return (
-    <MapContainer
-      center={[props.userLocation.latitude, props.userLocation.longitude]}
-      zoom={13}
-      className="h-full w-full"
-      ref={props.mapRef}
-      onClick={handleMapClick}
-    >
-      <TileLayer
-        url={mapProviders[mapProvider].url}
-        attribution={mapProviders[mapProvider].attribution}
-      />
+    <View className="w-full h-full">
+      <MapContainer
+        center={props.center || [39.5572, -7.8537]} // Center of Portugal
+        zoom={props.zoom || 7}
+        className="w-full h-full"
+        ref={mapRef}
+        onClick={handleMapClick}
+        dragging={props.allowInteraction !== false}
+        zoomControl={props.allowInteraction !== false}
+        scrollWheelZoom={props.allowInteraction !== false}
+        doubleClickZoom={props.allowInteraction !== false}
+        touchZoom={props.allowInteraction !== false}
+      >
+        {getTileLayer()}
+        <MapUpdater center={props.center} zoom={props.zoom} />
+        
+        <Marker position={[props.userLocation.latitude, props.userLocation.longitude]} icon={userIcon} />
 
-      <Marker position={[props.userLocation.latitude, props.userLocation.longitude]} icon={userIcon} />
+        {props.stations.map((station) => (
+          <Marker
+            key={station.idDgeg}
+            position={[station.localizacao.coordinates[1], station.localizacao.coordinates[0]]}
+            icon={createStationIcon(station.idDgeg.toString() === selectedStationId)}
+            eventHandlers={{
+              click: () => handleMarkerClick(station),
+            }}
+          />
+        ))}
 
-      {props.stations.map((station) => (
-        <Marker
-          key={station.idDgeg}
-          position={[station.localizacao.coordinates[1], station.localizacao.coordinates[0]]}
-          icon={createStationIcon(station.idDgeg.toString() === selectedStationId)}
-          eventHandlers={{
-            click: () => handleMarkerClick(station),
-          }}
+        {selectedStation && (
+          <Marker
+            position={[selectedStation.localizacao.coordinates[1], selectedStation.localizacao.coordinates[0]]}
+            icon={createStationIcon(true)}
+            eventHandlers={{
+              click: () => handleMarkerClick(selectedStation),
+            }}
+          />
+        )}
+
+        <CircleLayer
+          L={L}
+          userLocation={props.userLocation}
+          searchRadius={props.searchRadius}
+          useMap={useMap}
         />
-      ))}
 
-      <CircleLayer
-        L={L}
-        userLocation={props.userLocation}
-        searchRadius={props.searchRadius}
-        useMap={useMap}
-      />
-    </MapContainer>
+        {districtBoundary && (
+          <GeoJSON
+            data={districtBoundary}
+            style={{
+              color: '#2563eb',
+              weight: 2,
+              fillOpacity: 0.1,
+            }}
+          />
+        )}
+      </MapContainer>
+
+      {isSearchActive && (
+        <TouchableOpacity
+          className="absolute top-4 right-4 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg flex-row items-center"
+          onPress={handleClearSearch}
+        >
+          <Ionicons name="close-circle" size={20} color="#64748b" />
+          <Text className="ml-2 text-slate-700 dark:text-slate-300">
+            {language === 'en' ? 'Clear Search' : 'Limpar Pesquisa'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };
 

@@ -1,0 +1,76 @@
+{
+  "types": [
+    {
+      "id": "Gasóleo simples",
+      "icon": "water"
+    },
+    {
+      "id": "Gasóleo especial",
+      "icon": "water-outline"
+    },
+    {
+      "id": "Gasolina simples 95",
+      "icon": "speedometer"
+    },
+    {
+      "id": "Gasolina especial 95",
+      "icon": "speedometer-outline"
+    },
+    {
+      "id": "Gasolina 98",
+      "icon": "flame"
+    },
+    {
+      "id": "Gasolina especial 98",
+      "icon": "flame-outline"
+    },
+    {
+      "id": "Biodiesel B15",
+      "icon": "flash"
+    },
+    {
+      "id": "GPL Auto",
+      "icon": "flash-outline"
+    },
+    {
+      "id": "GNC (gás natural comprimido) - €/kg",
+      "icon": "leaf"
+    },
+    {
+      "id": "GNC (gás natural comprimido) - €/m3",
+      "icon": "leaf-outline"
+    },
+    {
+      "id": "GNL (gás natural liquefeito) - €/kg",
+      "icon": "water"
+    },
+    {
+      "id": "Gasolina aditivada",
+      "icon": "flask"
+    },
+    {
+      "id": "Gasolina de mistura (motores a 2 tempos)",
+      "icon": "flask-outline"
+    },
+    {
+      "id": "Gasóleo colorido",
+      "icon": "color-palette"
+    },
+    {
+      "id": "Gasóleo de aquecimento",
+      "icon": "thermometer"
+    },
+    {
+      "id": "Petróleo",
+      "icon": "water"
+    }
+  ],
+  "defaultTypes": [
+    "Gasóleo simples",
+    "Gasolina simples 95",
+    "Gasolina 98",
+    "GPL Auto",
+    "Biodiesel B15",
+    "Gasóleo especial"
+  ]
+} 

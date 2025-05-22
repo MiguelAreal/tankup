@@ -1,4 +1,4 @@
-export type Strings = {
+export interface Strings {
   station: {
     loading: string;
     distance: string;
@@ -7,24 +7,34 @@ export type Strings = {
     openInMaps: string;
     openInWaze: string;
     openInAppleMaps: string;
+    openInGoogleMaps: string;
     cheapestNearby: string;
     noStationsFound: string;
     locationRequired: string;
     useSearch: string;
+    open: string;
+    closed: string;
+    opensAt: string;
+    sortBy: {
+      mais_barato: string;
+      mais_caro: string;
+      mais_perto: string;
+      mais_longe: string;
+    };
     fuelType: {
-      "Gasóleo simples": string;
-      "Gasóleo especial": string;
-      "Gasolina simples 95": string;
-      "Gasolina especial 95": string;
-      "Gasolina 98": string;
-      "Biodiesel B15": string;
-      "GPL Auto": string;
+      [key: string]: string;
     };
   };
   search: {
     title: string;
     placeholder: string;
     selectDistrict: string;
+    district: string;
+    municipality: string;
+    fuelType: string;
+    sortBy: string;
+    search: string;
+    clear: string;
   };
   settings: {
     title: string;
@@ -41,15 +51,15 @@ export type Strings = {
     fuelType: string;
     logout: string;
     version: string;
+    developer: string;
+    provider: string;
     privacy: string;
     terms: string;
     aboutText: string;
-    developer: string;
-    provider: string;
   };
   favorites: {
     title: string;
     empty: string;
     addHint: string;
   };
-}; 
+} 
