@@ -20,13 +20,13 @@ type Screen = 'districts' | 'cities';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { language, selectedFuelTypes } = useAppContext();
+  const { language, selectedFuelTypes, setSearchState } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [selectedFuelType, setSelectedFuelType] = useState('');
+  const [selectedFuelType, setSelectedFuelType] = useState(selectedFuelTypes[0] || '');
   const [selectedSort, setSelectedSort] = useState<'mais_caro' | 'mais_barato'>('mais_barato');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,28 +107,15 @@ export default function SearchScreen() {
   const handleFuelTypeSelect = (type: string) => {
     setSelectedFuelType(type);
     setShowFuelTypeModal(false);
-    
-    // If we already have a district/city selected, trigger a new search
-    if (selectedDistrict || selectedCity) {
-      handleSearch(type);
-    }
   };
 
   const handleSortSelect = (sort: 'mais_caro' | 'mais_barato') => {
     setSelectedSort(sort);
     setShowSortModal(false);
-    
-    // If we already have a district/city selected, trigger a new search
-    if (selectedDistrict || selectedCity) {
-      handleSearch(undefined, sort);
-    }
   };
 
-  const handleSearch = async (newFuelType?: string, newSort?: 'mais_caro' | 'mais_barato') => {
-    const fuelTypeToUse = newFuelType || selectedFuelType;
-    const sortToUse = newSort || selectedSort;
-    
-    if (!fuelTypeToUse) {
+  const handleSearch = async () => {
+    if (!selectedFuelType) {
       setError(language === 'en' ? 'Please select a fuel type' : 'Por favor, selecione um tipo de combustível');
       return;
     }
@@ -145,21 +132,21 @@ export default function SearchScreen() {
       const results = await fetchStationsByLocation({
         distrito: selectedDistrict?.name,
         municipio: selectedCity || undefined,
-        fuelType: fuelTypeToUse,
-        sortBy: sortToUse
+        fuelType: selectedFuelType,
+        sortBy: selectedSort
       });
       
-      router.replace({
-        pathname: '/',
-        params: { 
-          searchResults: JSON.stringify(results),
-          searchType: 'location',
-          distrito: selectedDistrict?.name,
-          municipio: selectedCity,
-          fuelType: fuelTypeToUse,
-          sortBy: sortToUse
-        }
+      // Store search results in memory using AppContext
+      setSearchState({
+        results,
+        searchType: 'location',
+        distrito: selectedDistrict?.name,
+        municipio: selectedCity || undefined,
+        fuelType: selectedFuelType,
+        sortBy: selectedSort
       });
+      
+      router.replace('/');
     } catch (err) {
       setError(language === 'en' ? 'Error searching for stations' : 'Erro ao pesquisar postos');
       console.error('Search error:', err);

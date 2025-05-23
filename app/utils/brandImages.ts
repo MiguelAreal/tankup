@@ -1,6 +1,7 @@
 // Import all brand images
 export const brandImages = {
   'galp': require('../assets/brands/galp.webp'),
+  'auchan': require('../assets/brands/auchan.webp'),
   'cepsa': require('../assets/brands/cepsa.webp'),
   'bp': require('../assets/brands/bp.webp'),
   'prio': require('../assets/brands/prio.webp'),
@@ -8,7 +9,7 @@ export const brandImages = {
   'shell': require('../assets/brands/shell.webp'),
   'q8': require('../assets/brands/q8.webp'),
   'intermarché': require('../assets/brands/intermarché.webp'),
-  'lecrerc': require('../assets/brands/lecrerc.webp'),
+  'leclerc': require('../assets/brands/leclerc.webp'),
   'pingodoce': require('../assets/brands/pingodoce.webp'),
   'petroalva': require('../assets/brands/petroalva.webp'),
   'petroibérica': require('../assets/brands/petroibérica.webp'),

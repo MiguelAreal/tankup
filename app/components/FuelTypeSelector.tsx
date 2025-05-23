@@ -106,7 +106,7 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
                 }`}
                 onPress={() => {
                   onSelectSort(option.id as any);
-                  setIsSortDropdownOpen(false);
+                  setTimeout(() => setIsSortDropdownOpen(false), 100);
                 }}
               >
                 <View className="flex-row items-center">

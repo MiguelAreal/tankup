@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import fuelTypesData from '../app/assets/fuelTypes.json';
+import { Posto } from '../app/types/models';
 
 // Definindo os tipos para o contexto
 type NavigationAppType = 'google_maps' | 'waze' | 'apple_maps';
@@ -10,6 +11,15 @@ type LanguageType = 'pt' | 'en';
 
 // Default selected fuel types from JSON
 const DEFAULT_SELECTED_FUEL_TYPES = fuelTypesData.defaultTypes;
+
+type SearchState = {
+  results: Posto[];
+  searchType: 'location';
+  distrito?: string;
+  municipio?: string;
+  fuelType: string;
+  sortBy: 'mais_caro' | 'mais_barato';
+} | null;
 
 interface AppContextType {
   darkMode: boolean;
@@ -26,6 +36,9 @@ interface AppContextType {
   selectedFuelTypes: string[];
   setSelectedFuelTypes: (types: string[]) => void;
   handleFuelTypeToggle: (fuelType: string) => void;
+  searchState: SearchState;
+  setSearchState: (state: SearchState) => void;
+  clearSearch: () => void;
 }
 
 // Valores padrão para o contexto
@@ -44,6 +57,9 @@ const defaultValues: AppContextType = {
   selectedFuelTypes: DEFAULT_SELECTED_FUEL_TYPES,
   setSelectedFuelTypes: () => {},
   handleFuelTypeToggle: () => {},
+  searchState: null,
+  setSearchState: () => {},
+  clearSearch: () => {},
 };
 
 // Criação do contexto
@@ -66,6 +82,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [language, setLanguageState] = useState<LanguageType>('pt');
   const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>(DEFAULT_SELECTED_FUEL_TYPES);
+  const [searchState, setSearchState] = useState<SearchState>(null);
 
   // Função para atualizar o modo escuro e salvar
   const updateDarkMode = async (value: boolean) => {
@@ -143,6 +160,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
       }
     }
+  };
+
+  const clearSearch = () => {
+    setSearchState(null);
   };
 
   // Carrega as configurações iniciais
@@ -247,6 +268,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         selectedFuelTypes,
         setSelectedFuelTypes: updateSelectedFuelTypes,
         handleFuelTypeToggle,
+        searchState,
+        setSearchState,
+        clearSearch
       }}
     >
       {children}

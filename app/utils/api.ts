@@ -40,7 +40,7 @@ export async function fetchNearbyStations<T>(
   lat: number,
   lng: number,
   radius: number,
-  fueltype: string,
+  fuelType: string,
   sortBy: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto' = 'mais_barato',
 ): Promise<T> {
   try {
@@ -49,7 +49,7 @@ export async function fetchNearbyStations<T>(
         lat,
         lng,
         radius,
-        fueltype,
+        fuelType,
         sortBy,
       },
     });

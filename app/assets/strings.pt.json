@@ -55,10 +55,19 @@
     "search": "Pesquisar",
     "clear": "Limpar Pesquisa"
   },
+  "status": {
+    "loading": "A carregar...",
+    "locationPermissionDenied": "É necessária permissão de localização para mostrar estações próximas",
+    "noStationsFound": "Nenhuma estação encontrada na sua área",
+    "serviceUnavailable": "Serviço temporariamente indisponível. Por favor, tente novamente mais tarde.",
+    "noInternet": "Sem conexão à internet. Por favor, verifique sua conexão e tente novamente.",
+    "error": "Ocorreu um erro. Por favor, tente novamente."
+  },
   "settings": {
     "title": "Definições",
     "darkMode": "Modo escuro",
-    "mapProvider": "Estilo do mapa",
+    "mapProvider": "Provedor do Mapa",
+    "mapProviderDescription": "Escolha o serviço de mapas que prefere utilizar",
     "about": "Sobre",
     "language": "Idioma",
     "favorites": "Favoritos",

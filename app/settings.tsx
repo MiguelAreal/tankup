@@ -36,6 +36,9 @@ export default function SettingsScreen() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isMapDropdownOpen, setIsMapDropdownOpen] = useState(false);
+  const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+  const [isRadiusDropdownOpen, setIsRadiusDropdownOpen] = useState(false);
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
 
   // Sincroniza as configurações locais com o contexto
@@ -96,6 +99,34 @@ export default function SettingsScreen() {
     }
   };
 
+  const getCurrentNavAppName = () => {
+    switch (preferredNavigationApp) {
+      case 'google_maps':
+        return 'Google Maps';
+      case 'waze':
+        return 'Waze';
+      case 'apple_maps':
+        return 'Apple Maps';
+      default:
+        return 'Google Maps';
+    }
+  };
+
+  const getCurrentLanguageName = () => {
+    switch (language) {
+      case 'pt':
+        return 'Português';
+      case 'en':
+        return 'English';
+      default:
+        return 'Português';
+    }
+  };
+
+  const getCurrentRadiusText = () => {
+    return `${searchRadius} km`;
+  };
+
   if (isLoading || contextLoading) {
     return (
       <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900 justify-center items-center">
@@ -122,7 +153,7 @@ export default function SettingsScreen() {
         
         <View className="p-4">
           {/* Toggle de Modo Escuro */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
+          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
             <View className="flex-row justify-between items-center">
               <View className="flex-row items-center">
                 <Ionicons name="moon" size={24} color="#2563eb" />
@@ -141,129 +172,160 @@ export default function SettingsScreen() {
           </View>
           
           {/* App de Navegação Preferido */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="navigate" size={24} color="#2563eb" />
-              <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                {strings.settings.navigationApp}
-              </Text>
-            </View>
-            
+          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
             <TouchableOpacity 
-              className={`flex-row items-center p-3 rounded-lg mb-2 ${
-                preferredNavigationApp === 'google_maps' 
-                  ? 'bg-blue-100 dark:bg-blue-900' 
-                  : 'bg-transparent'
-              }`}
-              onPress={() => handleNavigationAppChange('google_maps')}
-              testID="googleMapsButton"
+              className="flex-row justify-between items-center"
+              onPress={() => setIsNavDropdownOpen(!isNavDropdownOpen)}
             >
-              <Ionicons 
-                name="navigate" 
-                size={24} 
-                color={preferredNavigationApp === 'google_maps' ? '#2563eb' : '#9ca3af'} 
-              />
-              <Text 
-                className={`ml-3 ${
-                  preferredNavigationApp === 'google_maps'
-                    ? 'text-blue-600 dark:text-blue-400 font-medium'
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                Google Maps
-              </Text>
+              <View className="flex-row items-center">
+                <Ionicons name="navigate" size={20} color="#2563eb" />
+                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                  {strings.settings.navigationApp}
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="text-slate-600 dark:text-slate-400 mr-2">
+                  {getCurrentNavAppName()}
+                </Text>
+                <Ionicons 
+                  name={isNavDropdownOpen ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#94a3b8" 
+                />
+              </View>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              className={`flex-row items-center p-3 rounded-lg mb-2 ${
-                preferredNavigationApp === 'waze' 
-                  ? 'bg-blue-100 dark:bg-blue-900' 
-                  : 'bg-transparent'
-              }`}
-              onPress={() => handleNavigationAppChange('waze')}
-              testID="wazeButton"
-            >
-              <Ionicons 
-                name="navigate" 
-                size={24} 
-                color={preferredNavigationApp === 'waze' ? '#2563eb' : '#9ca3af'} 
-              />
-              <Text 
-                className={`ml-3 ${
-                  preferredNavigationApp === 'waze'
-                    ? 'text-blue-600 dark:text-blue-400 font-medium'
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                Waze
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              className={`flex-row items-center p-3 rounded-lg ${
-                preferredNavigationApp === 'apple_maps' 
-                  ? 'bg-blue-100 dark:bg-blue-900'
-                  : 'bg-transparent'
-              }`}
-              onPress={() => handleNavigationAppChange('apple_maps')}
-              testID="appleMapsButton"
-            >
-              <Ionicons 
-                name="navigate" 
-                size={24} 
-                color={preferredNavigationApp === 'apple_maps' ? '#2563eb' : '#9ca3af'} 
-              />
-              <Text 
-                className={`ml-3 ${
-                  preferredNavigationApp === 'apple_maps'
-                    ? 'text-blue-600 dark:text-blue-400 font-medium'
-                    : 'text-slate-600 dark:text-slate-400'
-                }`}
-              >
-                Apple Maps
-              </Text>
-            </TouchableOpacity>
+
+            {isNavDropdownOpen && (
+              <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
+                <TouchableOpacity 
+                  className={`p-4 rounded-lg ${
+                    preferredNavigationApp === 'google_maps' 
+                      ? 'bg-blue-50 dark:bg-blue-900/30' 
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                  onPress={() => {
+                    handleNavigationAppChange('google_maps');
+                    setIsNavDropdownOpen(false);
+                  }}
+                >
+                  <Text 
+                    className={`${
+                      preferredNavigationApp === 'google_maps'
+                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Google Maps
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  className={`p-4 rounded-lg ${
+                    preferredNavigationApp === 'waze' 
+                      ? 'bg-blue-50 dark:bg-blue-900/30' 
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                  onPress={() => {
+                    handleNavigationAppChange('waze');
+                    setIsNavDropdownOpen(false);
+                  }}
+                >
+                  <Text 
+                    className={`${
+                      preferredNavigationApp === 'waze'
+                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Waze
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  className={`p-4 rounded-lg ${
+                    preferredNavigationApp === 'apple_maps' 
+                      ? 'bg-blue-50 dark:bg-blue-900/30' 
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                  onPress={() => {
+                    handleNavigationAppChange('apple_maps');
+                    setIsNavDropdownOpen(false);
+                  }}
+                >
+                  <Text 
+                    className={`${
+                      preferredNavigationApp === 'apple_maps'
+                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Apple Maps
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
           
           {/* Raio de Pesquisa */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="location" size={24} color="#2563eb" />
-              <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                {strings.settings.searchRadius}
-              </Text>
-            </View>
-            
-            <View className="flex-row justify-between mb-2">
-              {[5, 10, 15, 20].map((radius) => (
-                <TouchableOpacity
-                  key={radius}
-                  className={`py-4 px-8 rounded-lg ${
-                    searchRadius === radius
-                      ? 'bg-blue-600 dark:bg-blue-500'
-                      : 'bg-slate-200 dark:bg-slate-700'
-                  }`}
-                  onPress={() => handleRadiusChange(radius)}
-                  testID={`radius${radius}Button`}
-                >
-              
-                  <Text
-                    className={`${
-                      searchRadius === radius
-                        ? 'text-white font-medium'
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {radius} km
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            <TouchableOpacity 
+              className="flex-row justify-between items-center"
+              onPress={() => setIsRadiusDropdownOpen(!isRadiusDropdownOpen)}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name="location" size={20} color="#2563eb" />
+                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                  {strings.settings.searchRadius}
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="text-slate-600 dark:text-slate-400 mr-2">
+                  {getCurrentRadiusText()}
+                </Text>
+                <Ionicons 
+                  name={isRadiusDropdownOpen ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#94a3b8" 
+                />
+              </View>
+            </TouchableOpacity>
+
+            {isRadiusDropdownOpen && (
+              <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
+                <View className="flex-row justify-between mt-4">
+                  {[5, 10, 15, 20].map((radius) => (
+                    <TouchableOpacity
+                      key={radius}
+                      className={`py-4 px-8 rounded-lg ${
+                        searchRadius === radius
+                          ? 'bg-blue-600 dark:bg-blue-500'
+                          : 'bg-slate-200 dark:bg-slate-700'
+                      }`}
+                      onPress={() => {
+                        handleRadiusChange(radius);
+                        setIsRadiusDropdownOpen(false);
+                      }}
+                      testID={`radius${radius}Button`}
+                    >
+                      <Text
+                        className={`${
+                          searchRadius === radius
+                            ? 'text-white font-medium'
+                            : 'text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {radius} km
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
           
           {/* Map Provider Selection - Only show on web */}
           {Platform.OS === 'web' && (
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
+            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
               <TouchableOpacity 
                 className="flex-row justify-between items-center"
                 onPress={() => setIsMapDropdownOpen(!isMapDropdownOpen)}
@@ -315,31 +377,80 @@ export default function SettingsScreen() {
           )}
 
           {/* Idioma */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="language" size={24} color="#2563eb" />
-              <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                {strings.settings.language}
-              </Text>
-            </View>
-            <View className="flex-row">
-              <TouchableOpacity
-                className={`mr-2 px-4 py-2 rounded-lg ${language === 'pt' ? 'bg-blue-600' : 'bg-slate-200'} `}
-                onPress={() => setLanguage('pt')}
-              >
-                <Text className={language === 'pt' ? 'text-white font-medium' : 'text-slate-700'}>Português</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className={`px-4 py-2 rounded-lg ${language === 'en' ? 'bg-blue-600' : 'bg-slate-200'} `}
-                onPress={() => setLanguage('en')}
-              >
-                <Text className={language === 'en' ? 'text-white font-medium' : 'text-slate-700'}>English</Text>
-              </TouchableOpacity>
-            </View>
+          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            <TouchableOpacity 
+              className="flex-row justify-between items-center"
+              onPress={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name="language" size={20} color="#2563eb" />
+                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                  {strings.settings.language}
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="text-slate-600 dark:text-slate-400 mr-2">
+                  {getCurrentLanguageName()}
+                </Text>
+                <Ionicons 
+                  name={isLangDropdownOpen ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color="#94a3b8" 
+                />
+              </View>
+            </TouchableOpacity>
+
+            {isLangDropdownOpen && (
+              <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
+                <TouchableOpacity 
+                  className={`p-4 rounded-lg ${
+                    language === 'pt' 
+                      ? 'bg-blue-50 dark:bg-blue-900/30' 
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                  onPress={() => {
+                    setLanguage('pt');
+                    setIsLangDropdownOpen(false);
+                  }}
+                >
+                  <Text 
+                    className={`${
+                      language === 'pt'
+                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Português
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  className={`p-4 rounded-lg ${
+                    language === 'en' 
+                      ? 'bg-blue-50 dark:bg-blue-900/30' 
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                  onPress={() => {
+                    setLanguage('en');
+                    setIsLangDropdownOpen(false);
+                  }}
+                >
+                  <Text 
+                    className={`${
+                      language === 'en'
+                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : 'text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    English
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {/* Fuel Type Selection */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-4">
+          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
             <View className="flex-row items-center mb-2">
               <Ionicons name="water" size={24} color="#2563eb" />
               <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
@@ -386,7 +497,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* Sobre */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4">
+          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
             <View className="flex-row items-center mb-2">
               <Ionicons name="information-circle" size={24} color="#2563eb" />
               <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">

@@ -36,10 +36,19 @@ export interface Strings {
     search: string;
     clear: string;
   };
+  status: {
+    loading: string;
+    locationPermissionDenied: string;
+    noStationsFound: string;
+    serviceUnavailable: string;
+    noInternet: string;
+    error: string;
+  };
   settings: {
     title: string;
     darkMode: string;
     mapProvider: string;
+    mapProviderDescription: string;
     about: string;
     language: string;
     favorites: string;

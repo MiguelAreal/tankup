@@ -53,13 +53,22 @@
     "search": "Search",
     "clear": "Clear Search"
   },
+  "status": {
+    "loading": "Loading...",
+    "locationPermissionDenied": "Location permission is required to show nearby stations",
+    "noStationsFound": "No stations found in your area",
+    "serviceUnavailable": "Service is temporarily unavailable. Please try again later.",
+    "noInternet": "No internet connection. Please check your connection and try again.",
+    "error": "An error occurred. Please try again."
+  },
   "station.distance": "Distance",
   "station.noLocationTitle": "Location permission is required to show nearby stations.",
   "station.noLocationSubtitle": "Please use the search option to find stations.",
   "settings": {
     "title": "Settings",
     "darkMode": "Dark mode",
-    "mapProvider": "Map style",
+    "mapProvider": "Map Provider",
+    "mapProviderDescription": "Choose your preferred map service",
     "about": "About",
     "language": "Language",
     "favorites": "Favorites",

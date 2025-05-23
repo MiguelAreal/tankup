@@ -14,4 +14,5 @@ export interface MapProps {
   center?: [number, number];
   zoom?: number;
   allowInteraction?: boolean;
+  selectedStation?: Posto | null;
 } 

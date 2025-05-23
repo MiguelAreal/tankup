@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import 'leaflet/dist/leaflet.css';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GeoJSON, useMap } from 'react-leaflet';
+import { useMap } from 'react-leaflet';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../../context/AppContext';
 import stringsEN from '../../assets/strings.en.json';
@@ -91,34 +91,15 @@ const MapWeb: React.FC<MapProps> = (props) => {
         const results = JSON.parse(searchResults) as Posto[];
         // Update stations with search results
         if (results.length > 0) {
-          // Calculate center based on all stations
-          const bounds = results.reduce((acc: any, station: Posto) => {
-            const [lng, lat] = station.localizacao.coordinates;
-            return [
-              Math.min(acc[0], lat),
-              Math.min(acc[1], lng),
-              Math.max(acc[2], lat),
-              Math.max(acc[3], lng)
-            ];
-          }, [90, 180, -90, -180]);
-
-          // Add padding to bounds
-          const padding = 0.1;
-          const center = [
-            (bounds[0] + bounds[2]) / 2,
-            (bounds[1] + bounds[3]) / 2
-          ];
-
-          // Update map view
+          // Get coordinates of first station
+          const [lng, lat] = results[0].localizacao.coordinates;
+          
+          // Update map view to center on first station
           if (mapRef.current) {
-            mapRef.current.setView(center, 12);
-          }
-
-          // Load district/city boundary if available
-          if (distrito || municipio) {
-            // TODO: Load boundary data from your API
-            // This would be a separate API call to get the GeoJSON for the district/city
-            // For now, we'll just show the stations
+            mapRef.current.setView([lat, lng], 13, {
+              animate: true,
+              duration: 1
+            });
           }
         }
       } catch (error) {
@@ -130,7 +111,58 @@ const MapWeb: React.FC<MapProps> = (props) => {
   }, [searchParams]);
 
   const handleClearSearch = () => {
+    // Center map on user location before clearing search
+    if (mapRef.current && props.userLocation) {
+      mapRef.current.setView(
+        [props.userLocation.latitude, props.userLocation.longitude],
+        13,
+        { animate: true, duration: 1 }
+      );
+    }
     router.replace('/');
+  };
+
+  // Handle map movement
+  const handleMapMove = () => {
+    if (isSearchActive) {
+      // When in search mode, allow free map navigation
+      return;
+    }
+
+    // In normal mode, recenter on user location if they move too far
+    if (mapRef.current && props.userLocation) {
+      const center = mapRef.current.getCenter();
+      const distance = calculateDistance(
+        center.lat,
+        center.lng,
+        props.userLocation.latitude,
+        props.userLocation.longitude
+      );
+
+      if (distance > props.searchRadius * 1000) {
+        mapRef.current.setView(
+          [props.userLocation.latitude, props.userLocation.longitude],
+          mapRef.current.getZoom(),
+          { animate: true, duration: 1 }
+        );
+      }
+    }
+  };
+
+  // Calculate distance between two points in meters
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c;
   };
 
   if (isLoading || !components) {
@@ -276,63 +308,96 @@ const MapWeb: React.FC<MapProps> = (props) => {
   };
 
   return (
-    <View className="w-full h-full">
-      <MapContainer
-        center={props.center || [39.5572, -7.8537]} // Center of Portugal
-        zoom={props.zoom || 7}
-        className="w-full h-full"
-        ref={mapRef}
-        onClick={handleMapClick}
-        dragging={props.allowInteraction !== false}
-        zoomControl={props.allowInteraction !== false}
-        scrollWheelZoom={props.allowInteraction !== false}
-        doubleClickZoom={props.allowInteraction !== false}
-        touchZoom={props.allowInteraction !== false}
-      >
-        {getTileLayer()}
-        <MapUpdater center={props.center} zoom={props.zoom} />
-        
-        <Marker position={[props.userLocation.latitude, props.userLocation.longitude]} icon={userIcon} />
-
-        {props.stations.map((station) => (
+    <View style={styles.container}>
+      {components && (
+        <MapContainer
+          center={[props.userLocation.latitude, props.userLocation.longitude]}
+          zoom={13}
+          style={styles.map}
+          ref={mapRef}
+          onMoveEnd={handleMapMove}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          
+          {/* User Location Marker */}
           <Marker
-            key={station.idDgeg}
-            position={[station.localizacao.coordinates[1], station.localizacao.coordinates[0]]}
-            icon={createStationIcon(station.idDgeg.toString() === selectedStationId)}
-            eventHandlers={{
-              click: () => handleMarkerClick(station),
-            }}
+            position={[props.userLocation.latitude, props.userLocation.longitude]}
+            icon={components.L.divIcon({
+              className: 'user-location-marker',
+              html: `<div class="user-location-pulse"></div>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            })}
           />
-        ))}
 
-        {selectedStation && (
-          <Marker
-            position={[selectedStation.localizacao.coordinates[1], selectedStation.localizacao.coordinates[0]]}
-            icon={createStationIcon(true)}
-            eventHandlers={{
-              click: () => handleMarkerClick(selectedStation),
-            }}
-          />
-        )}
+          {/* Station Markers */}
+          {props.stations.map((station) => {
+            const [lng, lat] = station.localizacao.coordinates;
+            return (
+              <Marker
+                key={station.idDgeg}
+                position={[lat, lng]}
+                eventHandlers={{
+                  click: () => handleMarkerClick(station)
+                }}
+                icon={L.divIcon({
+                  html: `
+                    <div style="
+                      position: relative;
+                      width: 32px;
+                      height: 32px;
+                      cursor: pointer;
+                      transition: all 0.2s ease;
+                    ">
+                      <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 24px;
+                        height: 24px;
+                        background: ${selectedStation?.idDgeg === station.idDgeg ? 'rgb(239, 68, 68)' : 'rgb(0, 163, 82)'};
+                        border: 3px solid #fff;
+                        border-radius: 50% 50% 50% 0;
+                        transform: translateX(-50%) rotate(-45deg);
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                      ">
+                        <div style="
+                          width: 8px;
+                          height: 8px;
+                          background: #fff;
+                          border-radius: 50%;
+                          opacity: 0.8;
+                          transform: rotate(45deg);
+                        "></div>
+                      </div>
+                    </div>
+                  `,
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 32],
+                  className: ''
+                })}
+              />
+            );
+          })}
 
-        <CircleLayer
-          L={L}
-          userLocation={props.userLocation}
-          searchRadius={props.searchRadius}
-          useMap={useMap}
-        />
-
-        {districtBoundary && (
-          <GeoJSON
-            data={districtBoundary}
-            style={{
-              color: '#2563eb',
-              weight: 2,
-              fillOpacity: 0.1,
-            }}
-          />
-        )}
-      </MapContainer>
+          {/* Search Radius Circle - Only show in normal mode */}
+          {!isSearchActive && (
+            <CircleLayer
+              L={components.L}
+              userLocation={props.userLocation}
+              searchRadius={props.searchRadius}
+              useMap={useMap}
+            />
+          )}
+        </MapContainer>
+      )}
 
       {isSearchActive && (
         <TouchableOpacity
@@ -386,6 +451,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f1f5f9', // bg-slate-100
+  },
+  container: {
+    flex: 1,
+  },
+  map: {
+    flex: 1,
   },
 });
 
