@@ -22,7 +22,7 @@ jobs:
 
       - name: Build
         run: |
-          npx expo export:web
+          npx expo export
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
