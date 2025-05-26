@@ -23,8 +23,16 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
   const highlightAnim = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    checkIfFavorite();
-  }, []);
+    const checkFavoriteStatus = async () => {
+      try {
+        const isFavorite = await AsyncStorage.getItem(`favorite_${posto.idDgeg}`);
+        setIsFavorite(isFavorite === 'true');
+      } catch (error) {
+        // Silent error handling
+      }
+    };
+    checkFavoriteStatus();
+  }, [posto.idDgeg]);
 
   useEffect(() => {
     if (isSelected) {
@@ -44,51 +52,18 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
     }
   }, [isSelected]);
 
-  const checkIfFavorite = async () => {
-    try {
-      const favorites = await AsyncStorage.getItem('favoriteStations');
-      if (favorites) {
-        const favoriteStations = JSON.parse(favorites);
-        setIsFavorite(favoriteStations.some((station: Posto) => station.idDgeg === posto.idDgeg));
-      }
-    } catch (error) {
-      console.error('Error checking favorite status:', error);
-    }
-  };
-
   const toggleFavorite = async () => {
     try {
-      const favorites = await AsyncStorage.getItem('favoriteStations');
-      let favoriteStations = favorites ? JSON.parse(favorites) : [];
-
-      if (isFavorite) {
-        favoriteStations = favoriteStations.filter((station: Posto) => station.idDgeg !== posto.idDgeg);
-      } else {
-        favoriteStations.push(posto);
-      }
-
-      await AsyncStorage.setItem('favoriteStations', JSON.stringify(favoriteStations));
-      setIsFavorite(!isFavorite);
+      const newFavoriteStatus = !isFavorite;
+      await AsyncStorage.setItem(`favorite_${posto.idDgeg}`, String(newFavoriteStatus));
+      setIsFavorite(newFavoriteStatus);
     } catch (error) {
-      console.error('Error toggling favorite:', error);
+      // Silent error handling
     }
   };
 
   const isOpen = posto.horario ? isStationOpen(posto.horario) : false;
-  console.log('=== Fuel Type Debug ===');
-  console.log('Selected fuel type:', selectedFuelType);
-  console.log('Available fuels:', posto.combustiveis?.map(f => ({ tipo: f.tipo, preco: f.preco })));
-  const selectedFuel = posto.combustiveis?.find(fuel => {
-    const matches = fuel.tipo === selectedFuelType;
-    console.log('Comparing:', {
-      fuelType: fuel.tipo,
-      selectedType: selectedFuelType,
-      matches,
-      price: fuel.preco
-    });
-    return matches;
-  });
-  console.log('Selected fuel result:', selectedFuel);
+  const selectedFuel = posto.combustiveis?.find(f => f.tipo === selectedFuelType);
   
   const distance = posto.localizacao ? calculateDistance(
     userLocation.latitude,
@@ -97,60 +72,59 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
     posto.localizacao.coordinates[0]
   ) : 0;
 
-  const openInMaps = async () => {
-    if (!posto.localizacao) return;
-    
-    const [longitude, latitude] = posto.localizacao.coordinates;
-    let url = '';
-
-    if (Platform.OS === 'android') {
-      switch (preferredNavigationApp) {
-        case 'google_maps':
-          url = `google.navigation:q=${latitude},${longitude}`;
-          break;
-        case 'waze':
-          url = `waze://?ll=${latitude},${longitude}&navigate=yes`;
-          break;
-        default:
-          url = `google.navigation:q=${latitude},${longitude}`;
-      }
-    } else {
-      switch (preferredNavigationApp) {
-        case 'google_maps':
-          url = `comgooglemaps://?daddr=${latitude},${longitude}&directionsmode=driving`;
-          break;
-        case 'waze':
-          url = `waze://?ll=${latitude},${longitude}&navigate=yes`;
-          break;
-        case 'apple_maps':
-          url = `maps://?daddr=${latitude},${longitude}&dirflg=d`;
-          break;
-        default:
-          url = `maps://?daddr=${latitude},${longitude}&dirflg=d`;
-      }
+  const handleNavigate = (station: Posto) => {
+    if (!station.localizacao || !station.localizacao.coordinates) {
+      return;
     }
 
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
+    // Ensure we have valid coordinates
+    const coordinates = station.localizacao.coordinates;
+    if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+      return;
+    }
+
+    // Coordinates are stored as [longitude, latitude] in the Posto type
+    const [longitude, latitude] = coordinates;
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return;
+    }
+
+    let url = '';
+    switch (preferredNavigationApp) {
+      case 'google_maps':
+        url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+        break;
+      case 'waze':
+        url = `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`;
+        break;
+      case 'apple_maps':
+        url = `maps://app?daddr=${latitude},${longitude}`;
+        break;
+      default:
+        url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+        break;
+    }
+
+    if (url) {
+      if (Platform.OS === 'web') {
+        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        if (newWindow) {
+          newWindow.focus();
+        }
       } else {
-        // Fallback to web URLs
-        const webUrl = preferredNavigationApp === 'google_maps' 
-          ? `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`
-          : preferredNavigationApp === 'waze'
-          ? `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`
-          : Platform.OS === 'ios'
-          ? `https://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=d`
-          : `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-        
-        await Linking.openURL(webUrl);
+        Linking.canOpenURL(url).then((supported) => {
+          if (supported) {
+            return Linking.openURL(url);
+          } else {
+            const fallbackUrl = preferredNavigationApp === 'apple_maps'
+              ? `https://maps.apple.com/?daddr=${latitude},${longitude}`
+              : `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+            return Linking.openURL(fallbackUrl);
+          }
+        }).catch(() => {
+          Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`);
+        });
       }
-    } catch (error) {
-      console.error('Error opening maps:', error);
-      // Final fallback to Google Maps web
-      const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
-      await Linking.openURL(webUrl);
     }
   };
 
@@ -260,7 +234,7 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
 
         {/* Navigation button */}
         <TouchableOpacity
-          onPress={openInMaps}
+          onPress={() => handleNavigate(posto)}
           className="bg-blue-600 dark:bg-blue-500 px-4 py-2 rounded-lg flex-row items-center"
         >
           <Ionicons name={getNavigationIcon()} size={16} color="white" />

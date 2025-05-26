@@ -55,7 +55,6 @@ export async function fetchNearbyStations<T>(
     });
     return response.data;
   } catch (error: any) {
-    console.error('API Error:', error);
     if (error.code === 'ECONNREFUSED') {
       throw new Error(`${ERROR_MESSAGES.connection} ${API_CONFIG.baseURL}`);
     }
@@ -81,7 +80,6 @@ export const fetchStationsByLocation = async (params: SearchParams): Promise<Pos
     const response = await api.get<Posto[]>(`${ENDPOINTS.byLocation}?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching stations by location:', error);
-    throw new Error(ERROR_MESSAGES.fetchFailed);
+    throw error;
   }
 };

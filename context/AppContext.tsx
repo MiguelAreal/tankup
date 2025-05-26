@@ -73,77 +73,76 @@ interface AppProviderProps {
 // Provider do contexto
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [darkMode, setDarkMode] = useState<boolean>(systemColorScheme === 'dark');
-  const [preferredNavigationApp, setPreferredNavigationApp] = useState<NavigationAppType>(
+  const [darkMode, setDarkModeState] = useState<boolean>(systemColorScheme === 'dark');
+  const [preferredNavigationApp, setPreferredNavigationAppState] = useState<NavigationAppType>(
     defaultValues.preferredNavigationApp
   );
-  const [searchRadius, setSearchRadius] = useState<number>(defaultValues.searchRadius);
-  const [mapProvider, setMapProvider] = useState<MapProviderType>(defaultValues.mapProvider);
+  const [searchRadius, setSearchRadiusState] = useState<number>(defaultValues.searchRadius);
+  const [mapProvider, setMapProviderState] = useState<MapProviderType>(defaultValues.mapProvider);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [language, setLanguageState] = useState<LanguageType>('pt');
-  const [selectedFuelTypes, setSelectedFuelTypes] = useState<string[]>(DEFAULT_SELECTED_FUEL_TYPES);
+  const [selectedFuelTypes, setSelectedFuelTypesState] = useState<string[]>(DEFAULT_SELECTED_FUEL_TYPES);
   const [searchState, setSearchState] = useState<SearchState>(null);
 
   // Função para atualizar o modo escuro e salvar
-  const updateDarkMode = async (value: boolean) => {
+  const setDarkMode = async (value: boolean) => {
     try {
       await AsyncStorage.setItem('darkMode', String(value));
-      setDarkMode(value);
+      setDarkModeState(value);
     } catch (error) {
-      console.error('Erro ao salvar modo escuro:', error);
+      // Silent error handling
     }
   };
 
   // Função para atualizar o app de navegação e salvar
-  const updateNavigationApp = async (app: NavigationAppType) => {
-    setPreferredNavigationApp(app);
+  const setPreferredNavigationApp = async (value: 'google_maps' | 'waze' | 'apple_maps') => {
     try {
-      await AsyncStorage.setItem('preferredNavigationApp', app);
+      await AsyncStorage.setItem('preferredNavigationApp', JSON.stringify(value));
+      setPreferredNavigationAppState(value);
     } catch (error) {
-      console.error('Erro ao salvar app de navegação:', error);
+      // Silent error handling
     }
   };
 
   // Função para atualizar o raio de pesquisa e salvar
-  const updateSearchRadius = async (radius: number) => {
-    setSearchRadius(radius);
+  const setSearchRadius = async (value: number) => {
     try {
-      await AsyncStorage.setItem('searchRadius', String(radius));
+      await AsyncStorage.setItem('searchRadius', String(value));
+      setSearchRadiusState(value);
     } catch (error) {
-      console.error('Erro ao salvar raio de pesquisa:', error);
+      // Silent error handling
     }
   };
 
   // Função para atualizar o provider do mapa e salvar
-  const updateMapProvider = async (provider: MapProviderType) => {
-    setMapProvider(provider);
+  const setMapProvider = async (value: 'openstreetmap' | 'cartodb' | 'stamen' | 'esri') => {
     try {
-      await AsyncStorage.setItem('mapProvider', provider);
+      await AsyncStorage.setItem('mapProvider', value);
+      setMapProviderState(value);
     } catch (error) {
-      console.error('Erro ao salvar provider do mapa:', error);
+      // Silent error handling
     }
   };
 
-  const updateLanguage = async (lang: LanguageType) => {
-    setLanguageState(lang);
+  const setLanguage = async (value: 'en' | 'pt') => {
     try {
-      await AsyncStorage.setItem('language', lang);
+      await AsyncStorage.setItem('language', value);
+      setLanguageState(value);
     } catch (error) {
-      console.error('Erro ao salvar idioma:', error);
+      // Silent error handling
     }
   };
 
   // Função para atualizar os tipos de combustível selecionados e salvar
-  const updateSelectedFuelTypes = async (types: string[]) => {
+  const setSelectedFuelTypes = async (types: string[]) => {
     if (types.length > 6) {
-      console.warn('Cannot select more than 6 fuel types');
       return;
     }
-    setSelectedFuelTypes(types);
     try {
       await AsyncStorage.setItem('selectedFuelTypes', JSON.stringify(types));
+      setSelectedFuelTypesState(types);
     } catch (error) {
-      console.error('Erro ao salvar tipos de combustível:', error);
+      // Silent error handling
     }
   };
 
@@ -171,12 +170,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const loadSettings = async () => {
       try {
         const [
-          savedDarkMode,
-          savedNavigationApp,
-          savedRadius,
-          savedMapProvider,
-          savedLanguage,
-          savedFuelTypes
+          darkMode,
+          preferredNavigationApp,
+          searchRadius,
+          mapProvider,
+          language,
+          selectedFuelTypes
         ] = await Promise.all([
           AsyncStorage.getItem('darkMode'),
           AsyncStorage.getItem('preferredNavigationApp'),
@@ -186,28 +185,22 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           AsyncStorage.getItem('selectedFuelTypes')
         ]);
 
-        // Atualiza o modo escuro primeiro
-        if (savedDarkMode !== null) {
-          setDarkMode(savedDarkMode === 'true');
+        if (darkMode !== null) setDarkModeState(darkMode === 'true');
+        if (preferredNavigationApp) {
+          try {
+            const parsedApp = JSON.parse(preferredNavigationApp);
+            setPreferredNavigationAppState(parsedApp as NavigationAppType);
+          } catch {
+            // If parsing fails, use the value directly
+            setPreferredNavigationAppState(preferredNavigationApp as NavigationAppType);
+          }
         }
-        
-        if (savedNavigationApp !== null) {
-          setPreferredNavigationApp(savedNavigationApp as NavigationAppType);
-        }
-        if (savedRadius !== null) {
-          setSearchRadius(parseInt(savedRadius, 10));
-        }
-        if (savedMapProvider !== null) {
-          setMapProvider(savedMapProvider as MapProviderType);
-        }
-        if (savedLanguage !== null) {
-          setLanguageState(savedLanguage as LanguageType);
-        }
-        if (savedFuelTypes !== null) {
-          setSelectedFuelTypes(JSON.parse(savedFuelTypes));
-        }
+        if (searchRadius) setSearchRadiusState(Number(searchRadius));
+        if (mapProvider) setMapProviderState(mapProvider as MapProviderType);
+        if (language) setLanguageState(language as LanguageType);
+        if (selectedFuelTypes) setSelectedFuelTypesState(JSON.parse(selectedFuelTypes));
       } catch (error) {
-        console.error('Erro ao carregar configurações:', error);
+        // Silent error handling
       } finally {
         setIsLoading(false);
       }
@@ -220,7 +213,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   useEffect(() => {
     const savedDarkMode = AsyncStorage.getItem('darkMode');
     if (savedDarkMode === null) {
-      setDarkMode(systemColorScheme === 'dark');
+      setDarkModeState(systemColorScheme === 'dark');
     }
   }, [systemColorScheme]);
 
@@ -229,15 +222,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const saveSettings = async () => {
       try {
         await Promise.all([
-          AsyncStorage.setItem('darkMode', JSON.stringify(darkMode)),
+          AsyncStorage.setItem('darkMode', String(darkMode)),
           AsyncStorage.setItem('preferredNavigationApp', JSON.stringify(preferredNavigationApp)),
-          AsyncStorage.setItem('searchRadius', JSON.stringify(searchRadius)),
-          AsyncStorage.setItem('mapProvider', JSON.stringify(mapProvider)),
-          AsyncStorage.setItem('language', JSON.stringify(language)),
+          AsyncStorage.setItem('searchRadius', String(searchRadius)),
+          AsyncStorage.setItem('mapProvider', mapProvider),
+          AsyncStorage.setItem('language', language),
           AsyncStorage.setItem('selectedFuelTypes', JSON.stringify(selectedFuelTypes))
         ]);
       } catch (error) {
-        console.error('Error saving settings:', error);
+        // Silent error handling
       }
     };
 
@@ -255,18 +248,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     <AppContext.Provider
       value={{
         darkMode,
-        setDarkMode: updateDarkMode,
+        setDarkMode,
         preferredNavigationApp,
-        setPreferredNavigationApp: updateNavigationApp,
+        setPreferredNavigationApp,
         searchRadius,
-        setSearchRadius: updateSearchRadius,
+        setSearchRadius,
         mapProvider,
-        setMapProvider: updateMapProvider,
+        setMapProvider,
         isLoading,
         language,
-        setLanguage: updateLanguage,
+        setLanguage,
         selectedFuelTypes,
-        setSelectedFuelTypes: updateSelectedFuelTypes,
+        setSelectedFuelTypes,
         handleFuelTypeToggle,
         searchState,
         setSearchState,

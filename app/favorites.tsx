@@ -37,19 +37,18 @@ export default function FavoritesScreen() {
   }, [darkMode]);
 
   useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const favorites = await AsyncStorage.getItem('favoriteStations');
+        if (favorites) {
+          setFavorites(JSON.parse(favorites));
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+    };
     loadFavorites();
   }, []);
-
-  const loadFavorites = async () => {
-    try {
-      const favoritesJson = await AsyncStorage.getItem('favoriteStations');
-      if (favoritesJson) {
-        setFavorites(JSON.parse(favoritesJson));
-      }
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-    }
-  };
 
   const handleBackPress = () => {
     router.replace('/');

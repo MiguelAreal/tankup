@@ -55,25 +55,17 @@ export default function HomeScreen() {
 
   // Fetch and filter stations with debouncing
   const fetchAndFilterStations = React.useCallback(async (location: Location.LocationObjectCoords, forceFetch: boolean = false, fuelType?: string) => {
-    if (isFetchingMore && !forceFetch) return; // Prevent multiple simultaneous fetches unless forced
+    if (isFetchingMore && !forceFetch) return;
     
     const now = Date.now();
     if (!isSearchActive && !forceFetch && now - lastFetchTime.current < POLLING_INTERVAL) {
-      return; // Skip if not enough time has passed since last fetch and not forced
+      return;
     }
     
     setIsFetchingMore(true);
     lastFetchTime.current = now;
     
     const currentFuelType = fuelType || selectedFuelType;
-    
-    console.log('Fetching stations with params:', {
-      lat: location.latitude,
-      lng: location.longitude,
-      radius: searchRadius * 1000,
-      fuelType: currentFuelType,
-      sortBy: currentSort
-    });
 
     try {
       const data = await fetchNearbyStations<Posto[]>(
@@ -84,16 +76,13 @@ export default function HomeScreen() {
         currentSort
       );
       
-      console.log('Received stations:', data.length);
       setAllStations(data);
-      setFilteredStations(data); // Set filtered stations immediately
+      setFilteredStations(data);
     } catch (error) {
-      console.error('Error fetching stations:', error);
       setErrorMsg('No internet connection');
       setAllStations([]);
       setFilteredStations([]);
     } finally {
-      console.log('Fetch complete, setting isFetchingMore to false');
       setIsFetchingMore(false);
       setIsLoading(false);
     }
@@ -109,7 +98,6 @@ export default function HomeScreen() {
       setCurrentSort(searchState.sortBy);
     } else {
       setIsSearchActive(false);
-      // Reset to normal mode
       if (location) {
         fetchAndFilterStations(location.coords);
       }
@@ -154,11 +142,9 @@ export default function HomeScreen() {
           return;
         }
 
-        // Get initial location
         const initialLocation = await Location.getCurrentPositionAsync({});
         setLocation(initialLocation);
 
-        // Start watching position
         locationSubscription.current = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
@@ -170,7 +156,6 @@ export default function HomeScreen() {
           }
         );
       } catch (error) {
-        console.error('Location error:', error);
         setErrorMsg('Could not fetch location');
         setAllStations([]);
         setLocation({
@@ -195,7 +180,7 @@ export default function HomeScreen() {
         try {
           locationSubscription.current.remove();
         } catch (error) {
-          console.log('Error removing location subscription:', error);
+          // Silent error handling
         }
       }
     };
@@ -204,22 +189,12 @@ export default function HomeScreen() {
   // Effect to fetch stations when location changes
   useEffect(() => {
     if (!location || isSearchActive) return;
-    
-    console.log('Location changed, fetching stations...');
     fetchAndFilterStations(location.coords);
   }, [location, isSearchActive, fetchAndFilterStations]);
 
   // Filter stations based on current location and search radius
   useEffect(() => {
     if (!location || !allStations.length || isSearchActive || isFetchingMore) return;
-
-    console.log('=== Station Filtering Debug ===');
-    console.log('Search radius:', searchRadius, 'km');
-    console.log('User location:', {
-      lat: location.coords.latitude,
-      lng: location.coords.longitude
-    });
-    console.log('Total stations before filtering:', allStations.length);
     
     const filtered = allStations.filter(station => {
       const [stationLng, stationLat] = station.localizacao.coordinates;
@@ -233,14 +208,12 @@ export default function HomeScreen() {
       return isWithin;
     });
 
-    console.log('Filtered stations count:', filtered.length);
     setFilteredStations(filtered);
   }, [location, allStations, searchRadius, isSearchActive, isFetchingMore]);
 
   // Handle search results
   useEffect(() => {
     if (params.searchType === 'location' && !isSearchActive) {
-      console.log('Starting search with params:', params);
       setIsSearchActive(true);
       setSearchState({
         results: [],
@@ -251,7 +224,6 @@ export default function HomeScreen() {
         sortBy: params.sortBy as 'mais_caro' | 'mais_barato'
       });
 
-      // Fetch stations based on search parameters
       setIsFetchingMore(true);
       fetchStationsByLocation({
         distrito: params.distrito as string,
@@ -259,7 +231,6 @@ export default function HomeScreen() {
         fuelType: params.fuelType as string || selectedFuelType,
         sortBy: (params.sortBy as 'mais_caro' | 'mais_barato') || 'mais_barato'
       }).then((data: Posto[]) => {
-        console.log('Search results received:', data.length, 'stations');
         setAllStations(data);
         setFilteredStations(data);
         setSearchState({
@@ -272,32 +243,23 @@ export default function HomeScreen() {
         });
         setIsFetchingMore(false);
 
-        // Wait for the next render cycle to ensure stations are loaded
         setTimeout(() => {
-          // Center map on first station if available
           if (data.length > 0 && mapRef.current) {
             const [lng, lat] = data[0].localizacao.coordinates;
-            console.log('Centering map on first station:', { lat, lng });
             
             if (Platform.OS === 'web') {
-              // For web (Leaflet)
               try {
-                console.log('Attempting to center map with Leaflet');
                 const map = mapRef.current;
                 if (map && typeof map.setView === 'function') {
                   map.setView([lat, lng], 13, {
                     animate: true,
                     duration: 1
                   });
-                  console.log('Map centering command sent');
-                } else {
-                  console.error('Map reference is not properly initialized');
                 }
               } catch (error) {
-                console.error('Error centering map:', error);
+                // Silent error handling
               }
             } else {
-              // For native (react-native-maps)
               try {
                 const map = mapRef.current;
                 if (map && typeof map.animateToRegion === 'function') {
@@ -307,22 +269,14 @@ export default function HomeScreen() {
                     latitudeDelta: 0.02,
                     longitudeDelta: 0.02,
                   }, 1000);
-                } else {
-                  console.error('Map reference is not properly initialized');
                 }
               } catch (error) {
-                console.error('Error centering map:', error);
+                // Silent error handling
               }
             }
-          } else {
-            console.log('Cannot center map:', {
-              hasData: data.length > 0,
-              hasMapRef: !!mapRef.current
-            });
           }
-        }, 500); // Increased delay to ensure map is ready
+        }, 500);
       }).catch((error: Error) => {
-        console.error('Error fetching stations:', error);
         setErrorMsg('No internet connection');
         setIsFetchingMore(false);
       });
@@ -331,23 +285,14 @@ export default function HomeScreen() {
 
   // Clear search and resume normal operation
   const clearSearch = async () => {
-    console.log('Starting clear search...');
-    
-    // Reset all search-related states
     setIsSearchActive(false);
     setFilteredStations([]);
     setAllStations([]);
     setIsFetchingMore(true);
-    
-    // Reset selected station
     setSelectedStation(null);
-    
-    // Clear search state from context
     clearSearchContext();
     
-    // Resume normal operation with nearby stations
     if (location) {
-      console.log('Fetching nearby stations after clearing search...');
       try {
         const data = await fetchNearbyStations<Posto[]>(
           location.coords.latitude,
@@ -357,11 +302,9 @@ export default function HomeScreen() {
           'mais_barato'
         );
         
-        console.log('Received stations after clearing:', data.length);
         setAllStations(data);
         setFilteredStations(data);
       } catch (error) {
-        console.error('Error fetching stations after clearing:', error);
         setErrorMsg('No internet connection');
       } finally {
         setIsFetchingMore(false);
@@ -371,34 +314,26 @@ export default function HomeScreen() {
 
   // Handle fuel type selection
   const handleFuelTypeChange = (fuelType: string) => {
-    console.log('=== Fuel Type Change Debug ===');
-    console.log('Previous fuel type:', selectedFuelType);
-    console.log('New fuel type:', fuelType);
     setSelectedFuelType(fuelType);
-    setIsLoading(true); // Show loading immediately
-    setFilteredStations([]); // Clear current stations while loading
+    setIsLoading(true);
+    setFilteredStations([]);
     if (!isSearchActive && location) {
-      fetchAndFilterStations(location.coords, true, fuelType); // Pass the new fuel type directly
+      fetchAndFilterStations(location.coords, true, fuelType);
     }
   };
 
   // Handle sort change
   const handleSortChange = (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => {
-    console.log('Sort changed to:', sort);
-    
-    // Set loading state immediately
     setIsLoading(true);
-    setFilteredStations([]); // Clear current stations while loading
+    setFilteredStations([]);
     
     if (isSearchActive && searchState) {
-      // In search mode, update search state and fetch new results
       const updatedSearchState = {
         ...searchState,
         sortBy: sort as 'mais_caro' | 'mais_barato'
       };
       setSearchState(updatedSearchState);
       
-      // Fetch new results with updated sort
       fetchStationsByLocation({
         distrito: searchState.distrito,
         municipio: searchState.municipio,
@@ -409,14 +344,10 @@ export default function HomeScreen() {
         setFilteredStations(data);
         setIsLoading(false);
       }).catch((error) => {
-        console.error('Error fetching sorted stations:', error);
         setErrorMsg('No internet connection');
         setIsLoading(false);
       });
     } else if (location) {
-      // In normal mode, fetch nearby stations with new sort
-      console.log('Fetching nearby stations with sort:', sort);
-      // Update currentSort after the API call is made
       fetchNearbyStations<Posto[]>(
         location.coords.latitude,
         location.coords.longitude,
@@ -429,7 +360,6 @@ export default function HomeScreen() {
         setCurrentSort(sort);
         setIsLoading(false);
       }).catch((error) => {
-        console.error('Error fetching sorted stations:', error);
         setErrorMsg('No internet connection');
         setIsLoading(false);
       });
@@ -451,7 +381,7 @@ export default function HomeScreen() {
       setFilteredStations(results);
       setAllStations(results);
     } catch (error) {
-      console.error('Error searching stations:', error);
+      setErrorMsg('No internet connection');
     }
   };
 
@@ -459,41 +389,24 @@ export default function HomeScreen() {
   const handleMarkerPress = (station: Posto | null) => {
     setSelectedStation(station);
     if (station) {
-      // Find the index of the station in the sorted list
       const stationIndex = filteredStations.findIndex(s => s.idDgeg === station.idDgeg);
-      console.log('Station index in list:', stationIndex);
       
       if (stationIndex !== -1) {
-        // Calculate the total height up to the target card
         const headerHeight = 60;
-        const mapHeightPercent = 0.60; // Full map height
+        const mapHeightPercent = 0.60;
         const screenHeight = window.innerHeight;
         const mapHeight = screenHeight * mapHeightPercent;
         
-        // Calculate the exact position we want to reach
         const targetPosition = cardHeights.current
           .slice(0, stationIndex)
           .reduce((sum, height) => sum + height, 0);
         
-        // Calculate the visible area after map
         const visibleArea = screenHeight - mapHeight;
-        
-        // Calculate the scroll position that will center the card in the visible area
         const scrollPosition = Math.max(0, targetPosition - (visibleArea / 2) + headerHeight);
         
-        console.log('Scrolling to station:', {
-          stationIndex,
-          targetPosition,
-          visibleArea,
-          scrollPosition,
-          cardHeights: cardHeights.current
-        });
-
-        // First, ensure map is expanded
         currentMapHeight.current = mapHeightPercent;
         animateMapHeight(0.60);
         setTimeout(() => {
-          // After map animation completes, scroll to the station
           if (scrollViewRef.current) {
             scrollViewRef.current.scrollTo({
               y: scrollPosition,
@@ -547,7 +460,6 @@ export default function HomeScreen() {
   useEffect(() => {
     if (location && mapRef.current) {
       if (Platform.OS === 'web') {
-        // For web (Leaflet)
         try {
           const map = mapRef.current;
           if (map && typeof map.setView === 'function') {
@@ -557,10 +469,9 @@ export default function HomeScreen() {
             });
           }
         } catch (error) {
-          console.error('Error centering map on location:', error);
+          // Silent error handling
         }
       } else {
-        // For native (react-native-maps)
         try {
           const map = mapRef.current;
           if (map && typeof map.animateToRegion === 'function') {
@@ -572,7 +483,7 @@ export default function HomeScreen() {
             }, 1000);
           }
         } catch (error) {
-          console.error('Error centering map on location:', error);
+          // Silent error handling
         }
       }
     }

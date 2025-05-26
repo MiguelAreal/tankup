@@ -149,7 +149,6 @@ export default function SearchScreen() {
       router.replace('/');
     } catch (err) {
       setError(language === 'en' ? 'Error searching for stations' : 'Erro ao pesquisar postos');
-      console.error('Search error:', err);
     } finally {
       setIsLoading(false);
     }

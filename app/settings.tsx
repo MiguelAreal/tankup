@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, SafeAreaView, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -61,8 +62,12 @@ export default function SettingsScreen() {
   }, [darkMode]);
 
   const handleDarkModeToggle = async (value: boolean) => {
-    console.log('Toggling dark mode to:', value);
     setDarkMode(value);
+    try {
+      await AsyncStorage.setItem('darkMode', String(value));
+    } catch (error) {
+      // Silent error handling
+    }
   };
 
   const handleNavigationAppChange = (app: 'google_maps' | 'waze' | 'apple_maps') => {
