@@ -1,9 +1,9 @@
-name: Deploy to GitHub Pages
+name: Deploy Tankup Web para GitHub Pages
 
 on:
   push:
     branches:
-      - main  # or your default branch name
+      - main
 
 jobs:
   build-and-deploy:
@@ -21,11 +21,11 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: |
-          npx expo export
+        run: npx expo export
 
-      - name: Deploy
+      - name: Deploy para GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist
-          branch: gh-pages 
+          folder: dist/web
+          branch: gh-pages
+  
