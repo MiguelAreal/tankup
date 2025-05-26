@@ -22,7 +22,6 @@ jobs:
 
       - name: Build
         run: |
-          npm run web
           npx expo export:web
 
       - name: Deploy
