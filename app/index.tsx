@@ -72,7 +72,7 @@ export default function HomeScreen() {
       lng: location.longitude,
       radius: searchRadius * 1000,
       fuelType: currentFuelType,
-      sortBy: searchState?.sortBy || 'mais_barato'
+      sortBy: currentSort
     });
 
     try {
@@ -81,7 +81,7 @@ export default function HomeScreen() {
         location.longitude,
         searchRadius * 1000,
         currentFuelType,
-        searchState?.sortBy || 'mais_barato'
+        currentSort
       );
       
       console.log('Received stations:', data.length);
@@ -97,7 +97,7 @@ export default function HomeScreen() {
       setIsFetchingMore(false);
       setIsLoading(false);
     }
-  }, [searchRadius, searchState?.sortBy, isFetchingMore, isSearchActive]);
+  }, [searchRadius, currentSort, isFetchingMore, isSearchActive, selectedFuelType, location]);
 
   // Handle search state changes
   useEffect(() => {
@@ -382,24 +382,57 @@ export default function HomeScreen() {
     }
   };
 
+  // Handle sort change
   const handleSortChange = (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => {
     console.log('Sort changed to:', sort);
     
     // Set loading state immediately
     setIsLoading(true);
     setFilteredStations([]); // Clear current stations while loading
-    setCurrentSort(sort);
     
     if (isSearchActive && searchState) {
-      // In search mode, update search state
-      setSearchState({
+      // In search mode, update search state and fetch new results
+      const updatedSearchState = {
         ...searchState,
         sortBy: sort as 'mais_caro' | 'mais_barato'
+      };
+      setSearchState(updatedSearchState);
+      
+      // Fetch new results with updated sort
+      fetchStationsByLocation({
+        distrito: searchState.distrito,
+        municipio: searchState.municipio,
+        fuelType: searchState.fuelType,
+        sortBy: sort as 'mais_caro' | 'mais_barato'
+      }).then((data: Posto[]) => {
+        setAllStations(data);
+        setFilteredStations(data);
+        setIsLoading(false);
+      }).catch((error) => {
+        console.error('Error fetching sorted stations:', error);
+        setErrorMsg('No internet connection');
+        setIsLoading(false);
       });
     } else if (location) {
       // In normal mode, fetch nearby stations with new sort
       console.log('Fetching nearby stations with sort:', sort);
-      fetchAndFilterStations(location.coords, true); // Force fetch new data
+      // Update currentSort after the API call is made
+      fetchNearbyStations<Posto[]>(
+        location.coords.latitude,
+        location.coords.longitude,
+        searchRadius * 1000,
+        selectedFuelType,
+        sort
+      ).then((data) => {
+        setAllStations(data);
+        setFilteredStations(data);
+        setCurrentSort(sort);
+        setIsLoading(false);
+      }).catch((error) => {
+        console.error('Error fetching sorted stations:', error);
+        setErrorMsg('No internet connection');
+        setIsLoading(false);
+      });
     }
   };
 
