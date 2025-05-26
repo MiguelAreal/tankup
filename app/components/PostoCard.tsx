@@ -75,7 +75,20 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
   };
 
   const isOpen = posto.horario ? isStationOpen(posto.horario) : false;
-  const selectedFuel = posto.combustiveis?.find(fuel => fuel.tipo === selectedFuelType);
+  console.log('=== Fuel Type Debug ===');
+  console.log('Selected fuel type:', selectedFuelType);
+  console.log('Available fuels:', posto.combustiveis?.map(f => ({ tipo: f.tipo, preco: f.preco })));
+  const selectedFuel = posto.combustiveis?.find(fuel => {
+    const matches = fuel.tipo === selectedFuelType;
+    console.log('Comparing:', {
+      fuelType: fuel.tipo,
+      selectedType: selectedFuelType,
+      matches,
+      price: fuel.preco
+    });
+    return matches;
+  });
+  console.log('Selected fuel result:', selectedFuel);
   
   const distance = posto.localizacao ? calculateDistance(
     userLocation.latitude,

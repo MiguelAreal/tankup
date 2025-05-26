@@ -327,9 +327,62 @@ const MapWeb: React.FC<MapProps> = (props) => {
             position={[props.userLocation.latitude, props.userLocation.longitude]}
             icon={components.L.divIcon({
               className: 'user-location-marker',
-              html: `<div class="user-location-pulse"></div>`,
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
+              html: `
+                <div style="
+                  position: relative;
+                  width: 32px;
+                  height: 32px;
+                ">
+                  <div style="
+                    position: absolute;
+                    top: 0;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 24px;
+                    height: 24px;
+                    background: #3b82f6;
+                    border: 3px solid #fff;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  ">
+                    <div style="
+                      width: 8px;
+                      height: 8px;
+                      background: #fff;
+                      border-radius: 50%;
+                      opacity: 0.8;
+                    "></div>
+                  </div>
+                  <div style="
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 40px;
+                    height: 40px;
+                    background: rgba(59, 130, 246, 0.2);
+                    border-radius: 50%;
+                    animation: pulse 2s infinite;
+                  "></div>
+                </div>
+                <style>
+                  @keyframes pulse {
+                    0% {
+                      transform: translate(-50%, -50%) scale(0.5);
+                      opacity: 1;
+                    }
+                    100% {
+                      transform: translate(-50%, -50%) scale(1.5);
+                      opacity: 0;
+                    }
+                  }
+                </style>
+              `,
+              iconSize: [32, 32],
+              iconAnchor: [16, 16]
             })}
           />
 

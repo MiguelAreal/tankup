@@ -9,7 +9,7 @@ import stringsPT from './assets/strings.pt.json';
 import FuelTypeSelector from './components/FuelTypeSelector';
 import Header from './components/Header';
 import MapComponent from './components/Map/Map';
-import PostoCard from './components/PostoCard';
+import StationList from './components/StationList';
 import StatusMessage from './components/StatusMessage';
 import { Posto } from './types/models';
 import { Strings } from './types/strings';
@@ -19,11 +19,13 @@ import { isWithinRadius } from './utils/location';
 // Define types
 export default function HomeScreen() {
   const mapHeight = useRef(new Animated.Value(0.60)).current;
+  const currentMapHeight = useRef(0.60);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const mapRef = useRef<any>(null);
   const router = useRouter();
   const params = useLocalSearchParams();
+  const cardHeights = useRef<number[]>([]);
 
   const { 
     darkMode, 
@@ -36,6 +38,7 @@ export default function HomeScreen() {
     preferredNavigationApp 
   } = useAppContext();
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState<boolean>(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -45,19 +48,30 @@ export default function HomeScreen() {
   const [selectedStation, setSelectedStation] = useState<Posto | null>(null);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [currentSort, setCurrentSort] = useState<'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto'>('mais_barato');
+  const lastFetchTime = useRef<number>(0);
+  const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
 
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
 
   // Fetch and filter stations with debouncing
-  const fetchAndFilterStations = React.useCallback(async (location: Location.LocationObjectCoords) => {
-    if (isFetchingMore) return; // Prevent multiple simultaneous fetches
+  const fetchAndFilterStations = React.useCallback(async (location: Location.LocationObjectCoords, forceFetch: boolean = false, fuelType?: string) => {
+    if (isFetchingMore && !forceFetch) return; // Prevent multiple simultaneous fetches unless forced
+    
+    const now = Date.now();
+    if (!isSearchActive && !forceFetch && now - lastFetchTime.current < POLLING_INTERVAL) {
+      return; // Skip if not enough time has passed since last fetch and not forced
+    }
+    
     setIsFetchingMore(true);
+    lastFetchTime.current = now;
+    
+    const currentFuelType = fuelType || selectedFuelType;
     
     console.log('Fetching stations with params:', {
       lat: location.latitude,
       lng: location.longitude,
       radius: searchRadius * 1000,
-      fuelType: selectedFuelType,
+      fuelType: currentFuelType,
       sortBy: searchState?.sortBy || 'mais_barato'
     });
 
@@ -66,7 +80,7 @@ export default function HomeScreen() {
         location.latitude,
         location.longitude,
         searchRadius * 1000,
-        selectedFuelType,
+        currentFuelType,
         searchState?.sortBy || 'mais_barato'
       );
       
@@ -81,8 +95,9 @@ export default function HomeScreen() {
     } finally {
       console.log('Fetch complete, setting isFetchingMore to false');
       setIsFetchingMore(false);
+      setIsLoading(false);
     }
-  }, [searchRadius, selectedFuelType, searchState?.sortBy, isFetchingMore]);
+  }, [searchRadius, searchState?.sortBy, isFetchingMore, isSearchActive]);
 
   // Handle search state changes
   useEffect(() => {
@@ -112,10 +127,17 @@ export default function HomeScreen() {
 
   const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    if (offsetY > 30) {
-      animateMapHeight(0.40);
-    } else {
-      animateMapHeight(0.60);
+    const newMapHeight = offsetY > 30 ? 0.40 : 0.60;
+    
+    // Only animate map height if it's different from current value
+    if (Math.abs(currentMapHeight.current - newMapHeight) > 0.01) {
+      currentMapHeight.current = newMapHeight;
+      Animated.timing(mapHeight, {
+        toValue: newMapHeight,
+        duration: 50,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }).start();
     }
   };
 
@@ -298,9 +320,14 @@ export default function HomeScreen() {
 
   // Handle fuel type selection
   const handleFuelTypeChange = (fuelType: string) => {
+    console.log('=== Fuel Type Change Debug ===');
+    console.log('Previous fuel type:', selectedFuelType);
+    console.log('New fuel type:', fuelType);
     setSelectedFuelType(fuelType);
+    setIsLoading(true); // Show loading immediately
+    setFilteredStations([]); // Clear current stations while loading
     if (!isSearchActive && location) {
-      fetchAndFilterStations(location.coords);
+      fetchAndFilterStations(location.coords, true, fuelType); // Pass the new fuel type directly
     }
   };
 
@@ -308,7 +335,8 @@ export default function HomeScreen() {
     console.log('Sort changed to:', sort);
     
     // Set loading state immediately
-    setIsFetchingMore(true);
+    setIsLoading(true);
+    setFilteredStations([]); // Clear current stations while loading
     setCurrentSort(sort);
     
     if (isSearchActive && searchState) {
@@ -320,21 +348,7 @@ export default function HomeScreen() {
     } else if (location) {
       // In normal mode, fetch nearby stations with new sort
       console.log('Fetching nearby stations with sort:', sort);
-      fetchNearbyStations<Posto[]>(
-        location.coords.latitude,
-        location.coords.longitude,
-        searchRadius * 1000,
-        selectedFuelType,
-        sort
-      ).then((data) => {
-        setAllStations(data);
-        setFilteredStations(data);
-      }).catch((error) => {
-        console.error('Error fetching stations:', error);
-        setErrorMsg('No internet connection');
-      }).finally(() => {
-        setIsFetchingMore(false);
-      });
+      fetchAndFilterStations(location.coords, true); // Force fetch new data
     }
   };
 
@@ -366,17 +380,50 @@ export default function HomeScreen() {
       console.log('Station index in list:', stationIndex);
       
       if (stationIndex !== -1) {
-        // Calculate scroll position with padding to ensure card is fully visible
-        const cardHeight = 180; // Approximate height of each station card including margins
-        const scrollPosition = Math.max(0, (stationIndex * cardHeight));
+        // Calculate the total height up to the target card
+        const headerHeight = 60;
+        const mapHeightPercent = 0.60; // Full map height
+        const screenHeight = window.innerHeight;
+        const mapHeight = screenHeight * mapHeightPercent;
         
-        console.log('Scrolling to station at index:', stationIndex, 'position:', scrollPosition);
-        scrollViewRef.current?.scrollTo({
-          y: scrollPosition,
-          animated: true
+        // Calculate the exact position we want to reach
+        const targetPosition = cardHeights.current
+          .slice(0, stationIndex)
+          .reduce((sum, height) => sum + height, 0);
+        
+        // Calculate the visible area after map
+        const visibleArea = screenHeight - mapHeight;
+        
+        // Calculate the scroll position that will center the card in the visible area
+        const scrollPosition = Math.max(0, targetPosition - (visibleArea / 2) + headerHeight);
+        
+        console.log('Scrolling to station:', {
+          stationIndex,
+          targetPosition,
+          visibleArea,
+          scrollPosition,
+          cardHeights: cardHeights.current
         });
+
+        // First, ensure map is expanded
+        currentMapHeight.current = mapHeightPercent;
+        animateMapHeight(0.60);
+        setTimeout(() => {
+          // After map animation completes, scroll to the station
+          if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({
+              y: scrollPosition,
+              animated: true
+            });
+          }
+        }, 50);
       }
     }
+  };
+
+  // Measure card heights when stations are rendered
+  const measureCardHeight = (index: number, height: number) => {
+    cardHeights.current[index] = height;
   };
 
   const handleNavigate = (station: Posto) => {
@@ -475,7 +522,7 @@ export default function HomeScreen() {
           message={strings.status.locationPermissionDenied}
           type="warning"
         />
-      ) : !isSearchActive && filteredStations.length === 0 ? (
+      ) : !isSearchActive && filteredStations.length === 0 && !isLoading ? (
         <StatusMessage 
           message={strings.status.noStationsFound}
           type="info"
@@ -537,26 +584,16 @@ export default function HomeScreen() {
           </Animated.View>
 
           {/* Bottom List */}
-          <View className="flex-1 bg-white dark:bg-slate-900 rounded-t-3xl space-y-4">
-            <ScrollView 
-              ref={scrollViewRef}
-              className="px-4 pb-4"
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-            >
-              <View>
-                {filteredStations.map((station) => (
-                  <PostoCard
-                    key={station.idDgeg}
-                    posto={station}
-                    userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
-                    selectedFuelType={selectedFuelType}
-                    isSelected={selectedStation?.idDgeg === station.idDgeg}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-          </View>
+          <StationList
+            stations={filteredStations}
+            userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
+            selectedFuelType={selectedFuelType}
+            selectedStation={selectedStation}
+            onScroll={handleScroll}
+            onMeasureCardHeight={measureCardHeight}
+            scrollViewRef={scrollViewRef}
+            isLoading={isLoading || isFetchingMore}
+          />
         </>
       )}
     </SafeAreaView>

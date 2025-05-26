@@ -31,8 +31,11 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
 
-  // Filter fuel types based on selected types
-  const fuelTypes = fuelTypesData.types.filter(type => selectedFuelTypes.includes(type.id));
+  // Filter fuel types based on selected types and ensure they exist in the strings
+  const fuelTypes = fuelTypesData.types.filter(type => 
+    selectedFuelTypes.includes(type.id) && 
+    type.id in strings.station.fuelType
+  );
 
   return (
     <View>
