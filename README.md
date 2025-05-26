@@ -24,7 +24,6 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 * Dados disponibilizados pelo site da DGEG:
 
   * [https://precoscombustiveis.dgeg.gov.pt](https://precoscombustiveis.dgeg.gov.pt)
-  * Nota: Os dados não são providenciados via API com autenticação, sendo necessário fazer parsing dos ficheiros publicados (CSV/XML) ou de HTML/XML.
 
 ---
 
