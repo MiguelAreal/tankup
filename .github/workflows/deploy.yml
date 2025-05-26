@@ -21,11 +21,10 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npx expo export
+        run: npx expo export --platform web
 
       - name: Deploy para GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist/web
+          folder: dist
           branch: gh-pages
-  
