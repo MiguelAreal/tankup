@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, BackHandler, Easing, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, BackHandler, Easing, Platform, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
@@ -259,6 +259,7 @@ export default function HomeScreen() {
         fuelType: params.fuelType as string || selectedFuelType,
         sortBy: (params.sortBy as 'mais_caro' | 'mais_barato') || 'mais_barato'
       }).then((data: Posto[]) => {
+        console.log('Search results received:', data.length, 'stations');
         setAllStations(data);
         setFilteredStations(data);
         setSearchState({
@@ -270,6 +271,56 @@ export default function HomeScreen() {
           sortBy: (params.sortBy as 'mais_caro' | 'mais_barato') || 'mais_barato'
         });
         setIsFetchingMore(false);
+
+        // Wait for the next render cycle to ensure stations are loaded
+        setTimeout(() => {
+          // Center map on first station if available
+          if (data.length > 0 && mapRef.current) {
+            const [lng, lat] = data[0].localizacao.coordinates;
+            console.log('Centering map on first station:', { lat, lng });
+            
+            if (Platform.OS === 'web') {
+              // For web (Leaflet)
+              try {
+                console.log('Attempting to center map with Leaflet');
+                const map = mapRef.current;
+                if (map && typeof map.setView === 'function') {
+                  map.setView([lat, lng], 13, {
+                    animate: true,
+                    duration: 1
+                  });
+                  console.log('Map centering command sent');
+                } else {
+                  console.error('Map reference is not properly initialized');
+                }
+              } catch (error) {
+                console.error('Error centering map:', error);
+              }
+            } else {
+              // For native (react-native-maps)
+              try {
+                const map = mapRef.current;
+                if (map && typeof map.animateToRegion === 'function') {
+                  map.animateToRegion({
+                    latitude: lat,
+                    longitude: lng,
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }, 1000);
+                } else {
+                  console.error('Map reference is not properly initialized');
+                }
+              } catch (error) {
+                console.error('Error centering map:', error);
+              }
+            }
+          } else {
+            console.log('Cannot center map:', {
+              hasData: data.length > 0,
+              hasMapRef: !!mapRef.current
+            });
+          }
+        }, 500); // Increased delay to ensure map is ready
       }).catch((error: Error) => {
         console.error('Error fetching stations:', error);
         setErrorMsg('No internet connection');
@@ -462,12 +513,35 @@ export default function HomeScreen() {
   // Add map centering effect
   useEffect(() => {
     if (location && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      }, 1000);
+      if (Platform.OS === 'web') {
+        // For web (Leaflet)
+        try {
+          const map = mapRef.current;
+          if (map && typeof map.setView === 'function') {
+            map.setView([location.coords.latitude, location.coords.longitude], 13, {
+              animate: true,
+              duration: 1
+            });
+          }
+        } catch (error) {
+          console.error('Error centering map on location:', error);
+        }
+      } else {
+        // For native (react-native-maps)
+        try {
+          const map = mapRef.current;
+          if (map && typeof map.animateToRegion === 'function') {
+            map.animateToRegion({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }, 1000);
+          }
+        } catch (error) {
+          console.error('Error centering map on location:', error);
+        }
+      }
     }
   }, [location]);
 

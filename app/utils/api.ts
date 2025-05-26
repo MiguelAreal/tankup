@@ -3,7 +3,7 @@ import { Posto } from '../types/models';
 
 // API Configuration
 const API_CONFIG = {
-  baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
+  baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://tankup-backend.onrender.com',
   timeout: 5000,
   headers: {
     'Content-Type': 'application/json',

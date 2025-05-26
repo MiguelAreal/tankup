@@ -45,6 +45,30 @@ const MapWeb: React.FC<MapProps> = (props) => {
   const router = useRouter();
   const { t } = useTranslation();
 
+  // Add a function to handle map initialization
+  const handleMapReady = (map: any) => {
+    console.log('Map is ready');
+    if (props.mapRef) {
+      props.mapRef.current = map;
+    }
+  };
+
+  // Add effect to handle selected station changes
+  useEffect(() => {
+    if (selectedStation && mapRef.current) {
+      const [lng, lat] = selectedStation.localizacao.coordinates;
+      console.log('Centering map on selected station:', { lat, lng });
+      try {
+        mapRef.current.setView([lat, lng], 15, {
+          animate: true,
+          duration: 1
+        });
+      } catch (error) {
+        console.error('Error centering map on selected station:', error);
+      }
+    }
+  }, [selectedStation]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -94,12 +118,29 @@ const MapWeb: React.FC<MapProps> = (props) => {
           // Get coordinates of first station
           const [lng, lat] = results[0].localizacao.coordinates;
           
-          // Update map view to center on first station
+          // Update map view to center on first station with a smooth animation
           if (mapRef.current) {
-            mapRef.current.setView([lat, lng], 13, {
+            // Disable the map movement handler temporarily
+            const originalMoveHandler = mapRef.current.options.onMoveEnd;
+            mapRef.current.options.onMoveEnd = null;
+
+            mapRef.current.setView([lat, lng], 15, {
               animate: true,
-              duration: 1
+              duration: 1.5,
+              easeLinearity: 0.25
             });
+            
+            // Also set the selected station to the first result
+            setSelectedStation(results[0]);
+            setSelectedStationId(results[0].idDgeg.toString());
+            props.onMarkerPress(results[0]);
+
+            // Re-enable the map movement handler after a delay
+            setTimeout(() => {
+              if (mapRef.current) {
+                mapRef.current.options.onMoveEnd = originalMoveHandler;
+              }
+            }, 2000);
           }
         }
       } catch (error) {
@@ -264,6 +305,7 @@ const MapWeb: React.FC<MapProps> = (props) => {
   });
 
   const handleMarkerClick = (station: Posto) => {
+    console.log('Marker clicked:', station);
     setSelectedStation(station);
     setSelectedStationId(station.idDgeg.toString());
     props.onMarkerPress(station);
@@ -316,6 +358,7 @@ const MapWeb: React.FC<MapProps> = (props) => {
           style={styles.map}
           ref={mapRef}
           onMoveEnd={handleMapMove}
+          whenReady={handleMapReady}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -396,7 +439,7 @@ const MapWeb: React.FC<MapProps> = (props) => {
                 eventHandlers={{
                   click: () => handleMarkerClick(station)
                 }}
-                icon={L.divIcon({
+                icon={components.L.divIcon({
                   html: `
                     <div style="
                       position: relative;
