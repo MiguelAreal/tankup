@@ -3,12 +3,12 @@ import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, BackHandler, Easing, Platform, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, BackHandler, Dimensions, Easing, Platform, SafeAreaView, ScaledSize, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
 import { Posto } from '../types/models';
 import FuelTypeSelector from './components/FuelTypeSelector';
 import Header from './components/Header';
-import MapComponent from './components/Map/Map';
+import Map from './components/Map/Map';
 import ResponsiveAdBanner from './components/ResponsiveAdBanner';
 import StationList from './components/StationList';
 import StatusMessage from './components/StatusMessage';
@@ -19,14 +19,14 @@ import { isWithinRadius } from './utils/location';
 // Memoized components
 const MemoizedHeader = React.memo(Header);
 const MemoizedFuelTypeSelector = React.memo(FuelTypeSelector);
-const MemoizedMapComponent = React.memo(MapComponent);
+const MemoizedMap = React.memo(Map);
 const MemoizedStationList = React.memo(StationList);
 const MemoizedStatusMessage = React.memo(StatusMessage);
 
 // Define types
-export default function HomeScreen() {
-  const mapHeight = useRef(new Animated.Value(0.60)).current;
-  const currentMapHeight = useRef(0.60);
+const HomeScreen = () => {
+  const mapHeight = useRef(new Animated.Value(0.40)).current;
+  const currentMapHeight = useRef(0.40);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const mapRef = useRef<any>(null);
@@ -34,6 +34,13 @@ export default function HomeScreen() {
   const params = useLocalSearchParams();
   const cardHeights = useRef<number[]>([]);
   const { t } = useTranslation();
+  const [dimensions, setDimensions] = useState(() => {
+    const window = Dimensions.get('window');
+    return {
+      window,
+      isPortrait: window.height >= window.width
+    };
+  });
 
   const { 
     darkMode, 
@@ -60,6 +67,11 @@ export default function HomeScreen() {
   const lastFetchTime = useRef<number>(0);
   const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
   const { showAd } = useInterstitialAd();
+
+  // Debounced orientation change handler
+  const orientationChangeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAnimating = useRef(false);
 
   // Memoized handlers
   const handleFuelTypeChange = useCallback((fuelType: string) => {
@@ -170,17 +182,29 @@ export default function HomeScreen() {
   }, [preferredNavigationApp, showAd]);
 
   const handleScroll = useCallback((event: any) => {
+    if (isAnimating.current) return;
+
     const offsetY = event.nativeEvent.contentOffset.y;
-    const newMapHeight = offsetY > 30 ? 0.40 : 0.60;
+    const newMapHeight = offsetY > 30 ? 0.60 : 0.40;
     
     if (Math.abs(currentMapHeight.current - newMapHeight) > 0.01) {
-      currentMapHeight.current = newMapHeight;
-      Animated.timing(mapHeight, {
-        toValue: newMapHeight,
-        duration: 50,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }).start();
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+
+      scrollTimeout.current = setTimeout(() => {
+        isAnimating.current = true;
+        currentMapHeight.current = newMapHeight;
+        
+        Animated.timing(mapHeight, {
+          toValue: newMapHeight,
+          duration: 150,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: false,
+        }).start(() => {
+          isAnimating.current = false;
+        });
+      }, 100);
     }
   }, [mapHeight]);
 
@@ -404,39 +428,23 @@ export default function HomeScreen() {
         });
         setIsFetchingMore(false);
 
-        setTimeout(() => {
-          if (data.length > 0 && mapRef.current) {
-            const [lng, lat] = data[0].localizacao.coordinates;
-            
-            if (Platform.OS === 'web') {
-              try {
-                const map = mapRef.current;
-                if (map && typeof map.setView === 'function') {
-                  map.setView([lat, lng], 13, {
-                    animate: true,
-                    duration: 1
-                  });
-                }
-              } catch (error) {
-                // Silent error handling
-              }
-            } else {
-              try {
-                const map = mapRef.current;
-                if (map && typeof map.animateToRegion === 'function') {
-                  map.animateToRegion({
-                    latitude: lat,
-                    longitude: lng,
-                    latitudeDelta: 0.02,
-                    longitudeDelta: 0.02,
-                  }, 1000);
-                }
-              } catch (error) {
-                // Silent error handling
-              }
+        // Only animate to first station's location if we have results
+        if (data.length > 0 && mapRef.current) {
+          const [lng, lat] = data[0].localizacao.coordinates;
+          try {
+            const map = mapRef.current;
+            if (map && typeof map.animateToRegion === 'function') {
+              map.animateToRegion({
+                latitude: lat,
+                longitude: lng,
+                latitudeDelta: 0.1, // Increased to show more area
+                longitudeDelta: 0.1,
+              }, 1000);
             }
+          } catch (error) {
+            // Silent error handling
           }
-        }, 500);
+        }
       }).catch((error: Error) => {
         setErrorMsg('No internet connection');
         setIsFetchingMore(false);
@@ -459,35 +467,121 @@ export default function HomeScreen() {
   // Add map centering effect
   useEffect(() => {
     if (location && mapRef.current) {
-      if (Platform.OS === 'web') {
-        try {
-          const map = mapRef.current;
-          if (map && typeof map.setView === 'function') {
-            map.setView([location.coords.latitude, location.coords.longitude], 13, {
-              animate: true,
-              duration: 1
-            });
-          }
-        } catch (error) {
-          // Silent error handling
+      try {
+        const map = mapRef.current;
+        if (map && typeof map.animateToRegion === 'function') {
+          map.animateToRegion({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          }, 1000);
         }
-      } else {
-        try {
-          const map = mapRef.current;
-          if (map && typeof map.animateToRegion === 'function') {
-            map.animateToRegion({
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            }, 1000);
-          }
-        } catch (error) {
-          // Silent error handling
-        }
+      } catch (error) {
+        // Silent error handling
       }
     }
   }, [location]);
+
+  // Update dimensions on rotation with debounce
+  useEffect(() => {
+    const onChange = ({ window }: { window: ScaledSize }) => {
+      if (orientationChangeTimeout.current) {
+        clearTimeout(orientationChangeTimeout.current);
+      }
+
+      orientationChangeTimeout.current = setTimeout(() => {
+        setDimensions({
+          window,
+          isPortrait: window.height >= window.width
+        });
+      }, 50); // Small delay to ensure smooth transition
+    };
+
+    const subscription = Dimensions.addEventListener('change', ({ window, screen }) => onChange({ window }));
+
+    return () => {
+      if (orientationChangeTimeout.current) {
+        clearTimeout(orientationChangeTimeout.current);
+      }
+      subscription.remove();
+    };
+  }, []);
+
+  // Memoize the map component to prevent unnecessary re-renders
+  const mapComponent = useMemo(() => (
+    <MemoizedMap
+      ref={mapRef}
+      stations={filteredStations}
+      selectedStation={selectedStation}
+      onMarkerPress={handleMarkerPress}
+      userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
+      isSearchActive={isSearchActive}
+      searchRadius={searchRadius}
+      selectedFuelType={selectedFuelType}
+      style={dimensions.isPortrait ? undefined : { flex: 1 }}
+    />
+  ), [
+    filteredStations,
+    selectedStation,
+    handleMarkerPress,
+    location?.coords,
+    isSearchActive,
+    searchRadius,
+    selectedFuelType,
+    dimensions.isPortrait
+  ]);
+
+  // Memoize the station list component
+  const stationListComponent = useMemo(() => (
+    <MemoizedStationList
+      stations={filteredStations}
+      userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
+      selectedFuelType={selectedFuelType}
+      selectedStation={selectedStation}
+      onScroll={handleScroll}
+      onMeasureCardHeight={measureCardHeight}
+      scrollViewRef={scrollViewRef}
+      isLoading={isLoading}
+    />
+  ), [
+    filteredStations,
+    location?.coords,
+    selectedFuelType,
+    selectedStation,
+    handleScroll,
+    measureCardHeight,
+    isLoading
+  ]);
+
+  // Memoize the portrait layout
+  const portraitLayout = useMemo(() => (
+    <View className="flex-1">
+      <Animated.View
+        style={{
+          height: mapHeight.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0%', '100%'],
+          }),
+        }}
+      >
+        {mapComponent}
+      </Animated.View>
+      <View className="flex-1">
+        {stationListComponent}
+      </View>
+    </View>
+  ), [mapHeight, mapComponent, stationListComponent]);
+
+  // Memoize the landscape layout
+  const landscapeLayout = useMemo(() => (
+    <View className="flex-1 flex-row">
+      {mapComponent}
+      <View className="w-[400px]">
+        {stationListComponent}
+      </View>
+    </View>
+  ), [mapComponent, stationListComponent]);
 
   // Render loading screen
   if (isFetchingMore && !allStations.length) {
@@ -522,73 +616,34 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-
-      <MemoizedHeader />
-
-      {errorMsg && (
-        <MemoizedStatusMessage 
-          message={t('status.error')}
-          type="error"
+    <>
+      <StatusBar 
+        barStyle={darkMode ? 'light-content' : 'dark-content'}
+        translucent={true}
+        backgroundColor="transparent"
+      />
+      <SafeAreaView className="flex-1 bg-white dark:bg-slate-900" style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}>
+        <MemoizedHeader />
+        <MemoizedFuelTypeSelector
+          selectedFuelType={selectedFuelType}
+          onFuelTypeChange={handleFuelTypeChange}
+          selectedSort={currentSort}
+          onSelectSort={handleSortChange}
         />
-      )}
-
-      {!hasLocationPermission ? (
-        <MemoizedStatusMessage 
-          message={t('status.locationPermissionDenied')}
-          type="warning"
-        />
-      ) : !isSearchActive && filteredStations.length === 0 && !isLoading ? (
-        <MemoizedStatusMessage 
-          message={t('status.noStationsFound')}
-          type="info"
-        />
-      ) : (
-        <>
-          {searchHeader}
-
-          {!isSearchActive && (
-            <View className="flex-none">
-              <MemoizedFuelTypeSelector 
-                selectedFuelType={selectedFuelType} 
-                onSelectFuelType={handleFuelTypeChange}
-                selectedSort={currentSort}
-                onSelectSort={handleSortChange}
-              />
-            </View>
-          )}
-
-          <Animated.View style={{ height: mapHeight.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0%', '80%']
-          })}}>
-            <MemoizedMapComponent
-              mapRef={mapRef}
-              stations={isSearchActive ? allStations : filteredStations}
-              userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
-              onMarkerPress={handleMarkerPress}
-              selectedStation={selectedStation}
-              selectedFuelType={selectedFuelType}
-              searchRadius={isSearchActive ? 0 : searchRadius}
-            />
-          </Animated.View>
-
-          <View className="flex-1">
-            <MemoizedStationList
-              stations={filteredStations}
-              userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
-              selectedFuelType={selectedFuelType}
-              selectedStation={selectedStation}
-              onScroll={handleScroll}
-              onMeasureCardHeight={measureCardHeight}
-              scrollViewRef={scrollViewRef}
-              isLoading={isLoading || isFetchingMore}
-            />
-            <ResponsiveAdBanner testID="mainScreenBanner" />
-          </View>
-        </>
-      )}
-    </SafeAreaView>
+        <View className="flex-1">
+          {dimensions.isPortrait ? portraitLayout : landscapeLayout}
+        </View>
+        {errorMsg && (
+          <MemoizedStatusMessage
+            message={errorMsg}
+            type="error"
+            onClose={() => setErrorMsg(null)}
+          />
+        )}
+        <ResponsiveAdBanner />
+      </SafeAreaView>
+    </>
   );
-}
+};
+
+export default HomeScreen;

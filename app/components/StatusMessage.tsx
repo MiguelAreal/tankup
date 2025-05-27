@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type StatusType = 'error' | 'warning' | 'info' | 'success';
 type IconName = 'alert-circle' | 'warning' | 'information-circle' | 'checkmark-circle';
@@ -9,12 +9,14 @@ interface StatusMessageProps {
   message: string;
   type?: StatusType;
   icon?: IconName;
+  onClose?: () => void;
 }
 
 const StatusMessage: React.FC<StatusMessageProps> = ({ 
   message, 
   type = 'error',
-  icon 
+  icon,
+  onClose
 }) => {
   const getIconName = (): IconName => {
     if (icon) return icon;
@@ -73,6 +75,15 @@ const StatusMessage: React.FC<StatusMessageProps> = ({
       <Text style={[styles.message, { color: getTextColor() }]}>
         {message}
       </Text>
+      {onClose && (
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Ionicons 
+            name="close" 
+            size={20} 
+            color={getTextColor()} 
+          />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -93,6 +104,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
+  },
+  closeButton: {
+    marginLeft: 12,
   },
 });
 

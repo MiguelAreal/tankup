@@ -3,7 +3,7 @@
     "name": "TankUp",
     "slug": "tankup",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "tankup",
     "userInterfaceStyle": "automatic",
@@ -25,15 +25,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET"
-      ],
-      "config": {
-        "googleMobileAdsAppId": "ca-app-pub-2077617628178689~6328054830"
-      }
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -52,17 +44,10 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow TankUp to use your location to find nearby gas stations."
         }
-      ],
-      [
-        "expo-ads-admob",
-        {
-          "userTrackingPermission": "This identifier will be used to deliver personalized ads to you."
-        }
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "baseUrl": "/tankup"
+      "typedRoutes": true
     },
     "extra": {
       "eas": {

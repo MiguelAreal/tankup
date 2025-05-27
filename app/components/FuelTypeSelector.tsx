@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
+import { Strings } from '../../types/strings';
 import fuelTypesData from '../assets/fuelTypes.json';
 import stringsEN from '../assets/strings.en.json';
 import stringsPT from '../assets/strings.pt.json';
-import { Strings } from '../../types/strings';
 
 const sortOptions = [
   { id: 'mais_barato', icon: 'trending-down' },
@@ -16,15 +16,15 @@ const sortOptions = [
 
 type FuelTypeSelectorProps = {
   selectedFuelType: string;
-  onSelectFuelType: (fuelType: string) => void;
-  selectedSort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto';
-  onSelectSort: (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => void;
+  onFuelTypeChange: (fuelType: string) => void;
+  selectedSort?: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto';
+  onSelectSort?: (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => void;
 };
 
 const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
   selectedFuelType,
-  onSelectFuelType,
-  selectedSort,
+  onFuelTypeChange,
+  selectedSort = 'mais_barato',
   onSelectSort,
 }) => {
   const { language, selectedFuelTypes } = useAppContext();
@@ -52,7 +52,7 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
                 ? 'bg-blue-600'
                 : 'bg-slate-200 dark:bg-slate-700'
             }`}
-            onPress={() => onSelectFuelType(type.id)}
+            onPress={() => onFuelTypeChange(type.id)}
           >
             <View className="flex-row items-center">
               <Ionicons
@@ -74,65 +74,67 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
         ))}
       </ScrollView>
 
-      {/* Sort Dropdown */}
-      <View className="px-4 py-2">
-        <TouchableOpacity
-          className="flex-row items-center justify-between bg-slate-200 dark:bg-slate-700 p-3 rounded-lg"
-          onPress={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-        >
-          <View className="flex-row items-center">
+      {/* Sort Dropdown - Only show if onSelectSort is provided */}
+      {onSelectSort && (
+        <View className="px-4 py-2">
+          <TouchableOpacity
+            className="flex-row items-center justify-between bg-slate-200 dark:bg-slate-700 p-3 rounded-lg"
+            onPress={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+          >
+            <View className="flex-row items-center">
+              <Ionicons
+                name={sortOptions.find(opt => opt.id === selectedSort)?.icon as any}
+                size={20}
+                color="#64748b"
+              />
+              <Text className="ml-2 text-slate-700 dark:text-slate-300">
+                {strings.station.sortBy[selectedSort]}
+              </Text>
+            </View>
             <Ionicons
-              name={sortOptions.find(opt => opt.id === selectedSort)?.icon as any}
+              name={isSortDropdownOpen ? "chevron-up" : "chevron-down"}
               size={20}
               color="#64748b"
             />
-            <Text className="ml-2 text-slate-700 dark:text-slate-300">
-              {strings.station.sortBy[selectedSort]}
-            </Text>
-          </View>
-          <Ionicons
-            name={isSortDropdownOpen ? "chevron-up" : "chevron-down"}
-            size={20}
-            color="#64748b"
-          />
-        </TouchableOpacity>
+          </TouchableOpacity>
 
-        {isSortDropdownOpen && (
-          <View className="mt-2 bg-white dark:bg-slate-800 rounded-lg shadow-lg">
-            {sortOptions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                className={`p-3 ${
-                  selectedSort === option.id
-                    ? 'bg-blue-50 dark:bg-blue-900/30'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                }`}
-                onPress={() => {
-                  onSelectSort(option.id as any);
-                  setTimeout(() => setIsSortDropdownOpen(false), 100);
-                }}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons
-                    name={option.icon as any}
-                    size={20}
-                    color={selectedSort === option.id ? '#2563eb' : '#64748b'}
-                  />
-                  <Text
-                    className={`ml-2 ${
-                      selectedSort === option.id
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {strings.station.sortBy[option.id as keyof typeof strings.station.sortBy]}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
+          {isSortDropdownOpen && (
+            <View className="mt-2 bg-white dark:bg-slate-800 rounded-lg shadow-lg">
+              {sortOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  className={`p-3 ${
+                    selectedSort === option.id
+                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                  onPress={() => {
+                    onSelectSort(option.id as any);
+                    setTimeout(() => setIsSortDropdownOpen(false), 100);
+                  }}
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons
+                      name={option.icon as any}
+                      size={20}
+                      color={selectedSort === option.id ? '#2563eb' : '#64748b'}
+                    />
+                    <Text
+                      className={`ml-2 ${
+                        selectedSort === option.id
+                          ? 'text-blue-600 dark:text-blue-400 font-medium'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {strings.station.sortBy[option.id as keyof typeof strings.station.sortBy]}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 };

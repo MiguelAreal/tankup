@@ -40,6 +40,7 @@ interface AppContextType {
   searchState: SearchState;
   setSearchState: (state: SearchState) => void;
   clearSearch: () => void;
+  adUnitId: string;
 }
 
 // Valores padrão para o contexto
@@ -61,6 +62,7 @@ const defaultValues: AppContextType = {
   searchState: null,
   setSearchState: () => {},
   clearSearch: () => {},
+  adUnitId: __DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-2077617628178689/9692584772',
 };
 
 // Criação do contexto
@@ -265,7 +267,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         handleFuelTypeToggle,
         searchState,
         setSearchState,
-        clearSearch
+        clearSearch,
+        adUnitId: defaultValues.adUnitId
       }}
     >
       {children}

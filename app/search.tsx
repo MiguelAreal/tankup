@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
+import { Strings } from '../types/strings';
 import fuelTypesData from './assets/fuelTypes.json';
 import locationsData from './assets/locations.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
-import { Strings } from './types/strings';
 import { fetchStationsByLocation } from './utils/api';
 
 type District = {
@@ -20,7 +20,7 @@ type Screen = 'districts' | 'cities';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { language, selectedFuelTypes, setSearchState } = useAppContext();
+  const { language, selectedFuelTypes, setSearchState, darkMode } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -271,176 +271,204 @@ export default function SearchScreen() {
     </Modal>
   );
 
-  return (
-    <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900">
-      {/* Header */}
-      <View className="px-4 py-2 flex-row items-center justify-between">
-        <TouchableOpacity 
-          onPress={handleBackPress}
-          className="flex-row items-center"
-        >
-          <Ionicons name="arrow-back" size={24} color="#2563eb" />
-          <Text className="ml-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
-            {currentScreen === 'districts' ? strings.search.district : selectedDistrict?.name}
-          </Text>
-        </TouchableOpacity>
-
-        <View className="flex-row">
-          <TouchableOpacity
-            onPress={() => setShowFuelTypeModal(true)}
-            className="mr-2 bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
-          >
-            <Ionicons
-              name={selectedFuelType ? "checkmark-circle" : "options"}
-              size={20}
-              color={selectedFuelType ? "#2563eb" : "#64748b"}
-            />
-            <Text className={`ml-2 ${
-              selectedFuelType
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-slate-700 dark:text-slate-300'
-            }`}>
-              {selectedFuelType
-                ? strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]
-                : strings.search.fuelType}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setShowSortModal(true)}
-            className="bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
-          >
-            <Ionicons
-              name={selectedSort === 'mais_barato' ? 'trending-down' : 'trending-up'}
-              size={20}
-              color="#64748b"
-            />
-            <Text className="ml-2 text-slate-700 dark:text-slate-300">
-              {strings.station.sortBy[selectedSort]}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Search Bar */}
-      <View className="px-4 py-3">
-        <TextInput
-          className="bg-white dark:bg-slate-800 p-4 rounded-lg text-slate-800 dark:text-slate-200 text-base"
-          placeholder={currentScreen === 'districts' ? strings.search.placeholder : strings.search.municipality}
-          placeholderTextColor="#94a3b8"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+  if (isLoading) {
+    return (
+      <>
+        <StatusBar 
+          barStyle={darkMode ? 'light-content' : 'dark-content'}
+          translucent={true}
+          backgroundColor="transparent"
         />
-      </View>
+        <SafeAreaView 
+          className="flex-1 bg-slate-100 dark:bg-slate-900 justify-center items-center"
+          style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
+        >
+          <ActivityIndicator size="large" color="#2563eb" />
+        </SafeAreaView>
+      </>
+    );
+  }
 
-      {/* List */}
-      <ScrollView className="flex-1 px-4">
-        {currentScreen === 'districts' ? (
-          <>
-            {/* Show matching cities first if there's a search query */}
-            {searchQuery && filteredCities.length > 0 && (
-              <View className="mb-6">
+  return (
+    <>
+      <StatusBar 
+        barStyle={darkMode ? 'light-content' : 'dark-content'}
+        translucent={true}
+        backgroundColor="transparent"
+      />
+      <SafeAreaView 
+        className="flex-1 bg-slate-100 dark:bg-slate-900"
+        style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
+      >
+        {/* Header */}
+        <View className="px-4 py-2 flex-row items-center justify-between">
+          <TouchableOpacity 
+            onPress={handleBackPress}
+            className="flex-row items-center"
+          >
+            <Ionicons name="arrow-back" size={24} color="#2563eb" />
+            <Text className="ml-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
+              {currentScreen === 'districts' ? strings.search.district : selectedDistrict?.name}
+            </Text>
+          </TouchableOpacity>
+
+          <View className="flex-row">
+            <TouchableOpacity
+              onPress={() => setShowFuelTypeModal(true)}
+              className="mr-2 bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
+            >
+              <Ionicons
+                name={selectedFuelType ? "checkmark-circle" : "options"}
+                size={20}
+                color={selectedFuelType ? "#2563eb" : "#64748b"}
+              />
+              <Text className={`ml-2 ${
+                selectedFuelType
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-slate-700 dark:text-slate-300'
+              }`}>
+                {selectedFuelType
+                  ? strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]
+                  : strings.search.fuelType}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setShowSortModal(true)}
+              className="bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
+            >
+              <Ionicons
+                name={selectedSort === 'mais_barato' ? 'trending-down' : 'trending-up'}
+                size={20}
+                color="#64748b"
+              />
+              <Text className="ml-2 text-slate-700 dark:text-slate-300">
+                {strings.station.sortBy[selectedSort]}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Search Bar */}
+        <View className="px-4 py-3">
+          <TextInput
+            className="bg-white dark:bg-slate-800 p-4 rounded-lg text-slate-800 dark:text-slate-200 text-base"
+            placeholder={currentScreen === 'districts' ? strings.search.placeholder : strings.search.municipality}
+            placeholderTextColor="#94a3b8"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* List */}
+        <ScrollView className="flex-1 px-4">
+          {currentScreen === 'districts' ? (
+            <>
+              {/* Show matching cities first if there's a search query */}
+              {searchQuery && filteredCities.length > 0 && (
+                <View className="mb-6">
+                  <Text className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                    {strings.search.municipality}
+                  </Text>
+                  {filteredCities.map((cityData) => (
+                    <TouchableOpacity
+                      key={`${cityData.district.id}-${cityData.city}`}
+                      className="p-4 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                      onPress={() => handleCitySelect(cityData)}
+                    >
+                      <Text className="text-lg text-slate-800 dark:text-slate-200 font-medium">
+                        {cityData.city}
+                      </Text>
+                      <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        {cityData.district.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Show districts */}
+              <View>
                 <Text className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                  {strings.search.municipality}
+                  {strings.search.district}
                 </Text>
-                {filteredCities.map((cityData) => (
+                {filteredDistricts.map((district) => (
                   <TouchableOpacity
-                    key={`${cityData.district.id}-${cityData.city}`}
+                    key={district.id}
                     className="p-4 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
-                    onPress={() => handleCitySelect(cityData)}
+                    onPress={() => handleDistrictSelect(district)}
                   >
                     <Text className="text-lg text-slate-800 dark:text-slate-200 font-medium">
-                      {cityData.city}
+                      {district.name}
                     </Text>
                     <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                      {cityData.district.name}
+                      {district.cities.length} {strings.search.municipality.toLowerCase()}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            )}
-
-            {/* Show districts */}
-            <View>
-              <Text className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                {strings.search.district}
-              </Text>
-              {filteredDistricts.map((district) => (
-                <TouchableOpacity
-                  key={district.id}
-                  className="p-4 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
-                  onPress={() => handleDistrictSelect(district)}
-                >
-                  <Text className="text-lg text-slate-800 dark:text-slate-200 font-medium">
-                    {district.name}
-                  </Text>
-                  <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    {district.cities.length} {strings.search.municipality.toLowerCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        ) : (
-          // Cities List
-          filteredCities.map((cityData) => (
-            <TouchableOpacity
-              key={`${cityData.district.id}-${cityData.city}`}
-              className={`p-4 mb-3 rounded-lg shadow-sm ${
-                selectedCity === cityData.city
-                  ? 'bg-blue-600'
-                  : 'bg-white dark:bg-slate-800'
-              }`}
-              onPress={() => setSelectedCity(cityData.city)}
-            >
-              <Text className={`text-lg font-medium ${
-                selectedCity === cityData.city
-                  ? 'text-white'
-                  : 'text-slate-800 dark:text-slate-200'
-              }`}>
-                {cityData.city}
-              </Text>
-              <Text className={`text-sm mt-1 ${
-                selectedCity === cityData.city
-                  ? 'text-blue-100'
-                  : 'text-slate-500 dark:text-slate-400'
-              }`}>
-                {cityData.district.name}
-              </Text>
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
-
-      {/* Search Button */}
-      {currentScreen === 'cities' && (
-        <View className="p-4">
-          <TouchableOpacity
-            className={`p-4 rounded-lg shadow-sm ${
-              selectedFuelType ? 'bg-blue-600' : 'bg-slate-400'
-            }`}
-            onPress={() => handleSearch()}
-            disabled={isLoading || !selectedFuelType}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text className="text-white text-center font-medium text-lg">
-                {strings.search.search}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {error && (
-            <Text className="text-red-500 mt-4 text-center">
-              {error}
-            </Text>
+            </>
+          ) : (
+            // Cities List
+            filteredCities.map((cityData) => (
+              <TouchableOpacity
+                key={`${cityData.district.id}-${cityData.city}`}
+                className={`p-4 mb-3 rounded-lg shadow-sm ${
+                  selectedCity === cityData.city
+                    ? 'bg-blue-600'
+                    : 'bg-white dark:bg-slate-800'
+                }`}
+                onPress={() => setSelectedCity(cityData.city)}
+              >
+                <Text className={`text-lg font-medium ${
+                  selectedCity === cityData.city
+                    ? 'text-white'
+                    : 'text-slate-800 dark:text-slate-200'
+                }`}>
+                  {cityData.city}
+                </Text>
+                <Text className={`text-sm mt-1 ${
+                  selectedCity === cityData.city
+                    ? 'text-blue-100'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}>
+                  {cityData.district.name}
+                </Text>
+              </TouchableOpacity>
+            ))
           )}
-        </View>
-      )}
+        </ScrollView>
 
-      {renderFuelTypeModal()}
-      {renderSortModal()}
-    </SafeAreaView>
+        {/* Search Button */}
+        {currentScreen === 'cities' && (
+          <View className="p-4">
+            <TouchableOpacity
+              className={`p-4 rounded-lg shadow-sm ${
+                selectedFuelType ? 'bg-blue-600' : 'bg-slate-400'
+              }`}
+              onPress={() => handleSearch()}
+              disabled={isLoading || !selectedFuelType}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text className="text-white text-center font-medium text-lg">
+                  {strings.search.search}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {error && (
+              <Text className="text-red-500 mt-4 text-center">
+                {error}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {renderFuelTypeModal()}
+        {renderSortModal()}
+      </SafeAreaView>
+    </>
   );
 }

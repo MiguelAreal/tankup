@@ -3,9 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { Animated, Image, Linking, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
+import { Posto } from '../../types/models/Posto';
 import stringsEN from '../assets/strings.en.json';
 import stringsPT from '../assets/strings.pt.json';
-import { Posto } from '../../types/models/Posto';
 import { getBrandImage } from '../utils/brandImages';
 import { calculateDistance } from '../utils/location';
 import { isStationOpen } from '../utils/schedule';
@@ -146,20 +146,10 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
   };
 
   return (
-    <Animated.View
-      style={{
-        transform: [{
-          scale: highlightAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1, 1.02]
-          })
-        }],
-        backgroundColor: highlightAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: ['transparent', '#e0f2fe']
-        })
-      }}
-      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mx-2 my-6 border border-slate-200 dark:border-slate-700"
+    <View 
+      className={`w-full mb-2 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm ${
+        isSelected ? 'border-2 border-blue-500' : 'border border-slate-200 dark:border-slate-700'
+      }`}
     >
       {/* Main row: Logo, Info */}
       <View className="flex-row items-center justify-between">
@@ -249,7 +239,7 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
           </Text>
         </TouchableOpacity>
       </View>
-    </Animated.View>
+    </View>
   );
 };
 

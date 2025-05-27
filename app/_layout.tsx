@@ -1,8 +1,7 @@
 import { Stack } from "expo-router";
-import "leaflet/dist/leaflet.css";
 import React from "react";
 import { AppProvider } from "../context/AppContext";
-import "../global.css";
+import "./app.css";
 import './i18n';
 
 // Configure router to ignore type files

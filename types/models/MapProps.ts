@@ -15,6 +15,7 @@ export interface MapProps {
   zoom?: number;
   allowInteraction?: boolean;
   selectedStation?: Posto | null;
+  isSearchActive?: boolean;
 }
 
 export default MapProps; 
