@@ -5,3 +5,5 @@ export type MapMarkerProps = {
   selectedFuelType: string;
   onPress?: (station: Posto | null) => void;
 }; 
+
+export default MapMarkerProps; 

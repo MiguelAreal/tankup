@@ -1,20 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Animated, BackHandler, Easing, Platform, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
-import stringsEN from './assets/strings.en.json';
-import stringsPT from './assets/strings.pt.json';
+import { Posto } from '../types/models';
 import FuelTypeSelector from './components/FuelTypeSelector';
 import Header from './components/Header';
 import MapComponent from './components/Map/Map';
+import ResponsiveAdBanner from './components/ResponsiveAdBanner';
 import StationList from './components/StationList';
 import StatusMessage from './components/StatusMessage';
-import { Posto } from './types/models';
-import { Strings } from './types/strings';
+import { useInterstitialAd } from './hooks/useInterstitialAd';
 import { fetchNearbyStations, fetchStationsByLocation } from './utils/api';
 import { isWithinRadius } from './utils/location';
+
+// Memoized components
+const MemoizedHeader = React.memo(Header);
+const MemoizedFuelTypeSelector = React.memo(FuelTypeSelector);
+const MemoizedMapComponent = React.memo(MapComponent);
+const MemoizedStationList = React.memo(StationList);
+const MemoizedStatusMessage = React.memo(StatusMessage);
 
 // Define types
 export default function HomeScreen() {
@@ -26,6 +33,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const cardHeights = useRef<number[]>([]);
+  const { t } = useTranslation();
 
   const { 
     darkMode, 
@@ -37,6 +45,7 @@ export default function HomeScreen() {
     clearSearch: clearSearchContext,
     preferredNavigationApp 
   } = useAppContext();
+
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -50,11 +59,165 @@ export default function HomeScreen() {
   const [currentSort, setCurrentSort] = useState<'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto'>('mais_barato');
   const lastFetchTime = useRef<number>(0);
   const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
+  const { showAd } = useInterstitialAd();
 
-  const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
+  // Memoized handlers
+  const handleFuelTypeChange = useCallback((fuelType: string) => {
+    setSelectedFuelType(fuelType);
+    setIsLoading(true);
+    setFilteredStations([]);
+    if (!isSearchActive && location) {
+      fetchAndFilterStations(location.coords, true, fuelType);
+      showAd();
+    }
+  }, [isSearchActive, location, showAd]);
 
-  // Fetch and filter stations with debouncing
-  const fetchAndFilterStations = React.useCallback(async (location: Location.LocationObjectCoords, forceFetch: boolean = false, fuelType?: string) => {
+  const handleSortChange = useCallback((sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => {
+    setIsLoading(true);
+    setFilteredStations([]);
+    
+    if (isSearchActive && searchState) {
+      const updatedSearchState = {
+        ...searchState,
+        sortBy: sort as 'mais_caro' | 'mais_barato'
+      };
+      setSearchState(updatedSearchState);
+      
+      fetchStationsByLocation({
+        distrito: searchState.distrito,
+        municipio: searchState.municipio,
+        fuelType: searchState.fuelType,
+        sortBy: sort as 'mais_caro' | 'mais_barato'
+      }).then((data: Posto[]) => {
+        setAllStations(data);
+        setFilteredStations(data);
+        setIsLoading(false);
+      }).catch((error) => {
+        setErrorMsg('No internet connection');
+        setIsLoading(false);
+      });
+    } else if (location) {
+      fetchNearbyStations<Posto[]>(
+        location.coords.latitude,
+        location.coords.longitude,
+        searchRadius * 1000,
+        selectedFuelType,
+        sort
+      ).then((data) => {
+        setAllStations(data);
+        setFilteredStations(data);
+        setCurrentSort(sort);
+        setIsLoading(false);
+      }).catch((error) => {
+        setErrorMsg('No internet connection');
+        setIsLoading(false);
+      });
+    }
+  }, [isSearchActive, searchState, location, searchRadius, selectedFuelType, setSearchState]);
+
+  const handleMarkerPress = useCallback((station: Posto | null) => {
+    setSelectedStation(station);
+    if (station) {
+      const stationIndex = filteredStations.findIndex(s => s.id === station.id);
+      
+      if (stationIndex !== -1) {
+        const headerHeight = 60;
+        const mapHeightPercent = 0.60;
+        const screenHeight = window.innerHeight;
+        const mapHeight = screenHeight * mapHeightPercent;
+        
+        const targetPosition = cardHeights.current
+          .slice(0, stationIndex)
+          .reduce((sum, height) => sum + height, 0);
+        
+        const visibleArea = screenHeight - mapHeight;
+        const scrollPosition = Math.max(0, targetPosition - (visibleArea / 2) + headerHeight);
+        
+        currentMapHeight.current = mapHeightPercent;
+        animateMapHeight(0.60);
+        setTimeout(() => {
+          if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({
+              y: scrollPosition,
+              animated: true
+            });
+          }
+        }, 50);
+      }
+    }
+  }, [filteredStations]);
+
+  const handleNavigate = useCallback((station: Posto) => {
+    const [longitude, latitude] = station.localizacao.coordinates;
+    let url = '';
+
+    switch (preferredNavigationApp) {
+      case 'google_maps':
+        url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+        break;
+      case 'waze':
+        url = `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`;
+        break;
+      case 'apple_maps':
+        url = `maps://app?daddr=${latitude},${longitude}`;
+        break;
+    }
+
+    if (url) {
+      showAd();
+      window.open(url, '_blank');
+    }
+  }, [preferredNavigationApp, showAd]);
+
+  const handleScroll = useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const newMapHeight = offsetY > 30 ? 0.40 : 0.60;
+    
+    if (Math.abs(currentMapHeight.current - newMapHeight) > 0.01) {
+      currentMapHeight.current = newMapHeight;
+      Animated.timing(mapHeight, {
+        toValue: newMapHeight,
+        duration: 50,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [mapHeight]);
+
+  const measureCardHeight = useCallback((index: number, height: number) => {
+    cardHeights.current[index] = height;
+  }, []);
+
+  const clearSearch = useCallback(async () => {
+    setIsSearchActive(false);
+    setFilteredStations([]);
+    setAllStations([]);
+    setIsFetchingMore(true);
+    setSelectedStation(null);
+    clearSearchContext();
+    
+    if (location) {
+      try {
+        const data = await fetchNearbyStations<Posto[]>(
+          location.coords.latitude,
+          location.coords.longitude,
+          searchRadius * 1000,
+          selectedFuelType,
+          'mais_barato'
+        );
+        
+        setAllStations(data);
+        setFilteredStations(data);
+      } catch (error) {
+        setErrorMsg('No internet connection');
+      } finally {
+        setIsFetchingMore(false);
+      }
+    }
+  }, [location, searchRadius, selectedFuelType, clearSearchContext]);
+
+  // Memoized fetch and filter function
+  const fetchAndFilterStations = useCallback(async (location: Location.LocationObjectCoords, forceFetch: boolean = false, fuelType?: string) => {
     if (isFetchingMore && !forceFetch) return;
     
     const now = Date.now();
@@ -86,48 +249,46 @@ export default function HomeScreen() {
       setIsFetchingMore(false);
       setIsLoading(false);
     }
-  }, [searchRadius, currentSort, isFetchingMore, isSearchActive, selectedFuelType, location]);
+  }, [searchRadius, currentSort, isFetchingMore, isSearchActive, selectedFuelType]);
 
-  // Handle search state changes
-  useEffect(() => {
-    if (searchState) {
-      setIsSearchActive(true);
-      setAllStations(searchState.results);
-      setFilteredStations(searchState.results);
-      setSelectedFuelType(searchState.fuelType);
-      setCurrentSort(searchState.sortBy);
-    } else {
-      setIsSearchActive(false);
-      if (location) {
-        fetchAndFilterStations(location.coords);
-      }
-    }
-  }, [searchState]);
-
-  const animateMapHeight = (toValue: number) => {
+  // Memoized animation function
+  const animateMapHeight = useCallback((toValue: number) => {
     Animated.timing(mapHeight, {
       toValue,
       duration: 50,
       easing: Easing.linear,
       useNativeDriver: false,
     }).start();
-  };
+  }, [mapHeight]);
 
-  const handleScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const newMapHeight = offsetY > 30 ? 0.40 : 0.60;
-    
-    // Only animate map height if it's different from current value
-    if (Math.abs(currentMapHeight.current - newMapHeight) > 0.01) {
-      currentMapHeight.current = newMapHeight;
-      Animated.timing(mapHeight, {
-        toValue: newMapHeight,
-        duration: 50,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }).start();
-    }
-  };
+  // Memoized search header
+  const searchHeader = useMemo(() => {
+    if (!isSearchActive || !searchState) return null;
+    return (
+      <View className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <View className="flex-1">
+            <Text className="text-base font-medium text-slate-800 dark:text-slate-200">
+              {searchState.distrito && `${searchState.distrito}`}
+              {searchState.municipio && `, ${searchState.municipio}`}
+            </Text>
+            <Text className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              {t(`station.fuelType.${selectedFuelType}`)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={clearSearch}
+            className="flex-row items-center bg-blue-50 dark:bg-blue-900/30 px-3 py-2 rounded-full"
+          >
+            <Ionicons name="close-circle" size={16} color="#3b82f6" />
+            <Text className="text-blue-600 dark:text-blue-400 text-sm font-medium ml-1">
+              {t('search.clear')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }, [isSearchActive, searchState, selectedFuelType, clearSearch, t]);
 
   // Initial setup
   useEffect(() => {
@@ -281,168 +442,7 @@ export default function HomeScreen() {
         setIsFetchingMore(false);
       });
     }
-  }, [params.searchType, params.distrito, params.municipio, params.fuelType, params.sortBy, isSearchActive]);
-
-  // Clear search and resume normal operation
-  const clearSearch = async () => {
-    setIsSearchActive(false);
-    setFilteredStations([]);
-    setAllStations([]);
-    setIsFetchingMore(true);
-    setSelectedStation(null);
-    clearSearchContext();
-    
-    if (location) {
-      try {
-        const data = await fetchNearbyStations<Posto[]>(
-          location.coords.latitude,
-          location.coords.longitude,
-          searchRadius * 1000,
-          selectedFuelType,
-          'mais_barato'
-        );
-        
-        setAllStations(data);
-        setFilteredStations(data);
-      } catch (error) {
-        setErrorMsg('No internet connection');
-      } finally {
-        setIsFetchingMore(false);
-      }
-    }
-  };
-
-  // Handle fuel type selection
-  const handleFuelTypeChange = (fuelType: string) => {
-    setSelectedFuelType(fuelType);
-    setIsLoading(true);
-    setFilteredStations([]);
-    if (!isSearchActive && location) {
-      fetchAndFilterStations(location.coords, true, fuelType);
-    }
-  };
-
-  // Handle sort change
-  const handleSortChange = (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => {
-    setIsLoading(true);
-    setFilteredStations([]);
-    
-    if (isSearchActive && searchState) {
-      const updatedSearchState = {
-        ...searchState,
-        sortBy: sort as 'mais_caro' | 'mais_barato'
-      };
-      setSearchState(updatedSearchState);
-      
-      fetchStationsByLocation({
-        distrito: searchState.distrito,
-        municipio: searchState.municipio,
-        fuelType: searchState.fuelType,
-        sortBy: sort as 'mais_caro' | 'mais_barato'
-      }).then((data: Posto[]) => {
-        setAllStations(data);
-        setFilteredStations(data);
-        setIsLoading(false);
-      }).catch((error) => {
-        setErrorMsg('No internet connection');
-        setIsLoading(false);
-      });
-    } else if (location) {
-      fetchNearbyStations<Posto[]>(
-        location.coords.latitude,
-        location.coords.longitude,
-        searchRadius * 1000,
-        selectedFuelType,
-        sort
-      ).then((data) => {
-        setAllStations(data);
-        setFilteredStations(data);
-        setCurrentSort(sort);
-        setIsLoading(false);
-      }).catch((error) => {
-        setErrorMsg('No internet connection');
-        setIsLoading(false);
-      });
-    }
-  };
-
-  const handleSearch = async (distrito?: string, municipio?: string, fuelType?: string, sortBy?: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => {
-    if (!distrito && !municipio) return;
-    
-    try {
-      const results = await fetchNearbyStations<Posto[]>(
-        location?.coords.latitude || 0,
-        location?.coords.longitude || 0,
-        searchRadius * 1000,
-        fuelType || selectedFuelType,
-        sortBy || 'mais_barato'
-      );
-      
-      setFilteredStations(results);
-      setAllStations(results);
-    } catch (error) {
-      setErrorMsg('No internet connection');
-    }
-  };
-
-  // Handle marker press
-  const handleMarkerPress = (station: Posto | null) => {
-    setSelectedStation(station);
-    if (station) {
-      const stationIndex = filteredStations.findIndex(s => s.idDgeg === station.idDgeg);
-      
-      if (stationIndex !== -1) {
-        const headerHeight = 60;
-        const mapHeightPercent = 0.60;
-        const screenHeight = window.innerHeight;
-        const mapHeight = screenHeight * mapHeightPercent;
-        
-        const targetPosition = cardHeights.current
-          .slice(0, stationIndex)
-          .reduce((sum, height) => sum + height, 0);
-        
-        const visibleArea = screenHeight - mapHeight;
-        const scrollPosition = Math.max(0, targetPosition - (visibleArea / 2) + headerHeight);
-        
-        currentMapHeight.current = mapHeightPercent;
-        animateMapHeight(0.60);
-        setTimeout(() => {
-          if (scrollViewRef.current) {
-            scrollViewRef.current.scrollTo({
-              y: scrollPosition,
-              animated: true
-            });
-          }
-        }, 50);
-      }
-    }
-  };
-
-  // Measure card heights when stations are rendered
-  const measureCardHeight = (index: number, height: number) => {
-    cardHeights.current[index] = height;
-  };
-
-  const handleNavigate = (station: Posto) => {
-    const [longitude, latitude] = station.localizacao.coordinates;
-    let url = '';
-
-    switch (preferredNavigationApp) {
-      case 'google_maps':
-        url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-        break;
-      case 'waze':
-        url = `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`;
-        break;
-      case 'apple_maps':
-        url = `maps://app?daddr=${latitude},${longitude}`;
-        break;
-    }
-
-    if (url) {
-      window.open(url, '_blank');
-    }
-  };
+  }, [params.searchType, params.distrito, params.municipio, params.fuelType, params.sortBy, isSearchActive, selectedFuelType, setSearchState]);
 
   // Apply dark mode class to html element
   useEffect(() => {
@@ -495,7 +495,7 @@ export default function HomeScreen() {
       <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-900">
         <ActivityIndicator size="large" color="#0066cc" />
         <Text className="mt-4 text-lg font-medium text-center text-slate-700 dark:text-slate-200">
-          {strings.station.loading}
+          {t('station.loading')}
         </Text>
       </View>
     );
@@ -506,16 +506,16 @@ export default function HomeScreen() {
     return (
       <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
         <Text className="text-xl font-semibold text-slate-800 dark:text-slate-200 text-center mb-4">
-          No internet connection
+          {t('error.noInternet')}
         </Text>
         <Text className="text-slate-600 dark:text-slate-400 text-center mb-8">
-          Please check your connection and try again.
+          {t('error.checkConnection')}
         </Text>
         <TouchableOpacity
           className="bg-blue-600 px-6 py-3 rounded-lg"
           onPress={() => BackHandler.exitApp()}
         >
-          <Text className="text-white font-medium">Exit App</Text>
+          <Text className="text-white font-medium">{t('common.exit')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -525,58 +525,32 @@ export default function HomeScreen() {
     <SafeAreaView className={`flex-1 ${darkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
       <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
-      <Header />
+      <MemoizedHeader />
 
       {errorMsg && (
-        <StatusMessage 
-          message={strings.status.error}
+        <MemoizedStatusMessage 
+          message={t('status.error')}
           type="error"
         />
       )}
 
       {!hasLocationPermission ? (
-        <StatusMessage 
-          message={strings.status.locationPermissionDenied}
+        <MemoizedStatusMessage 
+          message={t('status.locationPermissionDenied')}
           type="warning"
         />
       ) : !isSearchActive && filteredStations.length === 0 && !isLoading ? (
-        <StatusMessage 
-          message={strings.status.noStationsFound}
+        <MemoizedStatusMessage 
+          message={t('status.noStationsFound')}
           type="info"
         />
       ) : (
         <>
-          {/* Search Header */}
-          {isSearchActive && searchState && (
-            <View className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <View className="flex-row items-center justify-between px-4 py-3">
-                <View className="flex-1">
-                  <Text className="text-base font-medium text-slate-800 dark:text-slate-200">
-                    {searchState.distrito && `${searchState.distrito}`}
-                    {searchState.municipio && `, ${searchState.municipio}`}
-                  </Text>
-                  <Text className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    {strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={clearSearch}
-                  className="flex-row items-center bg-blue-50 dark:bg-blue-900/30 px-3 py-2 rounded-full"
-                >
-                  <Ionicons name="close-circle" size={16} color="#3b82f6" />
-                  <Text className="text-blue-600 dark:text-blue-400 text-sm font-medium ml-1">
-                    Limpar pesquisa
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          {searchHeader}
 
-          {/* Fuel Type Selector - Only show when not in search mode */}
           {!isSearchActive && (
             <View className="flex-none">
-              <FuelTypeSelector 
+              <MemoizedFuelTypeSelector 
                 selectedFuelType={selectedFuelType} 
                 onSelectFuelType={handleFuelTypeChange}
                 selectedSort={currentSort}
@@ -585,12 +559,11 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Map in the middle */}
           <Animated.View style={{ height: mapHeight.interpolate({
             inputRange: [0, 1],
             outputRange: ['0%', '80%']
           })}}>
-            <MapComponent
+            <MemoizedMapComponent
               mapRef={mapRef}
               stations={isSearchActive ? allStations : filteredStations}
               userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
@@ -601,17 +574,19 @@ export default function HomeScreen() {
             />
           </Animated.View>
 
-          {/* Bottom List */}
-          <StationList
-            stations={filteredStations}
-            userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
-            selectedFuelType={selectedFuelType}
-            selectedStation={selectedStation}
-            onScroll={handleScroll}
-            onMeasureCardHeight={measureCardHeight}
-            scrollViewRef={scrollViewRef}
-            isLoading={isLoading || isFetchingMore}
-          />
+          <View className="flex-1">
+            <MemoizedStationList
+              stations={filteredStations}
+              userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
+              selectedFuelType={selectedFuelType}
+              selectedStation={selectedStation}
+              onScroll={handleScroll}
+              onMeasureCardHeight={measureCardHeight}
+              scrollViewRef={scrollViewRef}
+              isLoading={isLoading || isFetchingMore}
+            />
+            <ResponsiveAdBanner testID="mainScreenBanner" />
+          </View>
         </>
       )}
     </SafeAreaView>

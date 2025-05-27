@@ -2,11 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import fuelTypesData from '../app/assets/fuelTypes.json';
-import { Posto } from '../app/types/models';
+import i18n from '../app/i18n';
+import { Posto } from '../types/models';
 
 // Definindo os tipos para o contexto
 type NavigationAppType = 'google_maps' | 'waze' | 'apple_maps';
-type MapProviderType = 'openstreetmap' | 'cartodb' | 'stamen' | 'esri';
+type MapProviderType = 'openstreetmap' | 'cartodb_light' | 'cartodb_dark';
 type LanguageType = 'pt' | 'en';
 
 // Default selected fuel types from JSON
@@ -115,7 +116,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   // Função para atualizar o provider do mapa e salvar
-  const setMapProvider = async (value: 'openstreetmap' | 'cartodb' | 'stamen' | 'esri') => {
+  const setMapProvider = async (value: 'openstreetmap' | 'cartodb_light' | 'cartodb_dark') => {
     try {
       await AsyncStorage.setItem('mapProvider', value);
       setMapProviderState(value);
@@ -128,6 +129,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       await AsyncStorage.setItem('language', value);
       setLanguageState(value);
+      i18n.changeLanguage(value);
     } catch (error) {
       // Silent error handling
     }

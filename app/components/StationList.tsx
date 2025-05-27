@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { Posto } from '../types/models';
+import { Posto } from '../../types/models';
 import PostoCard from './PostoCard';
 
 interface StationListProps {
@@ -43,14 +43,14 @@ const StationList: React.FC<StationListProps> = ({
           ) : (
             stations.map((station, index) => (
               <View
-                key={station.idDgeg}
+                key={station.id}
                 onLayout={(event) => onMeasureCardHeight(index, event.nativeEvent.layout.height)}
               >
                 <PostoCard
-                  posto={station}
+                  station={station}
                   userLocation={userLocation}
                   selectedFuelType={selectedFuelType}
-                  isSelected={selectedStation?.idDgeg === station.idDgeg}
+                  isSelected={selectedStation?.id === station.id}
                 />
               </View>
             ))

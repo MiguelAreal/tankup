@@ -37,4 +37,11 @@ export const brandImages = {
 export const getBrandImage = (brandName: string | undefined) => {
   if (!brandName) return require('../assets/brands/placeholder.webp');
   return brandImages[brandName.toLowerCase() as keyof typeof brandImages] || require('../assets/brands/placeholder.webp');
-}; 
+};
+
+const brandUtils = {
+  brandImages,
+  getBrandImage,
+};
+
+export default brandUtils; 

@@ -4,17 +4,16 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, SafeAreaView, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
+import { Strings } from '../types/strings';
 import fuelTypesData from './assets/fuelTypes.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
-import { Strings } from './types/strings';
 
 // Map provider options
 const mapProviders = [
-  { id: 'openstreetmap', name: 'OpenStreetMap' },
-  { id: 'cartodb', name: 'CartoDB Light' },
-  { id: 'stamen', name: 'Stamen Terrain' },
-  { id: 'esri', name: 'ESRI World Imagery' },
+  { id: 'openstreetmap', name: 'OpenStreetMap Standard', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors' },
+  { id: 'cartodb_light', name: 'CartoDB Positron (Light)', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '© OpenStreetMap, © CARTO' },
+  { id: 'cartodb_dark', name: 'CartoDB Dark Matter', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '© OpenStreetMap, © CARTO' }
 ];
 
 export default function SettingsScreen() {
@@ -42,10 +41,15 @@ export default function SettingsScreen() {
   const [isRadiusDropdownOpen, setIsRadiusDropdownOpen] = useState(false);
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
 
-  // Sincroniza as configurações locais com o contexto
+  // Initialize dropdowns based on current values
   useEffect(() => {
     if (!contextLoading) {
       setIsLoading(false);
+      // Open the dropdowns that match the current values
+      setIsMapDropdownOpen(true);
+      setIsNavDropdownOpen(true);
+      setIsLangDropdownOpen(true);
+      setIsRadiusDropdownOpen(true);
     }
   }, [contextLoading]);
 
@@ -78,7 +82,7 @@ export default function SettingsScreen() {
     setSearchRadius(radius);
   };
 
-  const handleMapProviderChange = (provider: 'openstreetmap' | 'cartodb' | 'stamen' | 'esri') => {
+  const handleMapProviderChange = (provider: 'openstreetmap' | 'cartodb_light' | 'cartodb_dark') => {
     setMapProvider(provider);
     setIsMapDropdownOpen(false);
   };

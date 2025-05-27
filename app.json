@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.tankup",
+      "bundleIdentifier": "com.miguelareal.tankup",
       "buildNumber": "1.0.0"
     },
     "android": {
@@ -19,13 +19,16 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.yourcompany.tankup",
+      "package": "com.miguelareal.tankup",
       "versionCode": 1,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET"
-      ]
+      ],
+      "config": {
+        "googleMobileAdsAppId": "ca-app-pub-2077617628178689~6328054830"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -49,6 +52,12 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow TankUp to use your location to find nearby gas stations."
         }
+      ],
+      [
+        "expo-ads-admob",
+        {
+          "userTrackingPermission": "This identifier will be used to deliver personalized ads to you."
+        }
       ]
     ],
     "experiments": {
@@ -59,6 +68,7 @@
       "eas": {
         "projectId": "your-project-id"
       }
-    }
+    },
+    "privacy": "https://your-privacy-policy-url.com"
   }
 }

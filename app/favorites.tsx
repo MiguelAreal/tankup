@@ -4,11 +4,12 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
+import { Posto } from '../types/models/Posto';
+import { Strings } from '../types/strings';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
 import PostoCard from './components/PostoCard';
-import { Posto } from './types/models';
-import { Strings } from './types/strings';
+import ResponsiveAdBanner from './components/ResponsiveAdBanner';
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -72,14 +73,17 @@ export default function FavoritesScreen() {
       {/* Content */}
       <ScrollView className="flex-1 px-4">
         {favorites.length > 0 ? (
-          favorites.map((station) => (
-            <PostoCard
-              key={station.idDgeg}
-              posto={station}
-              selectedFuelType={selectedFuelType}
-              userLocation={{ latitude: 38.736946, longitude: -9.142685 }}
-            />
-          ))
+          <>
+            {favorites.map((station) => (
+              <PostoCard
+                key={station.id}
+                station={station}
+                selectedFuelType={selectedFuelType}
+                userLocation={{ latitude: 38.736946, longitude: -9.142685 }}
+              />
+            ))}
+            <ResponsiveAdBanner testID="favoritesScreenBanner" />
+          </>
         ) : (
           <View className="items-center justify-center py-10">
             <Ionicons name="heart-outline" size={48} color="#64748b" />

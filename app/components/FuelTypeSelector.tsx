@@ -5,7 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import fuelTypesData from '../assets/fuelTypes.json';
 import stringsEN from '../assets/strings.en.json';
 import stringsPT from '../assets/strings.pt.json';
-import { Strings } from '../types/strings';
+import { Strings } from '../../types/strings';
 
 const sortOptions = [
   { id: 'mais_barato', icon: 'trending-down' },

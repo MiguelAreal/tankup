@@ -15,4 +15,6 @@ export interface MapProps {
   zoom?: number;
   allowInteraction?: boolean;
   selectedStation?: Posto | null;
-} 
+}
+
+export default MapProps; 

@@ -71,4 +71,6 @@ export interface Strings {
     empty: string;
     addHint: string;
   };
-} 
+}
+
+export default Strings; 

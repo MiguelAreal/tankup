@@ -24,6 +24,7 @@
     "@types/google.maps": "^3.58.1",
     "axios": "^1.9.0",
     "expo": "~53.0.9",
+    "expo-ads-admob": "^13.0.0",
     "expo-blur": "~14.1.4",
     "expo-constants": "~17.1.6",
     "expo-font": "~13.3.1",

@@ -31,3 +31,10 @@ export const isWithinRadius = (
   const distance = calculateDistance(stationLat, stationLon, userLat, userLon);
   return distance <= radiusKm;
 };
+
+const locationUtils = {
+  calculateDistance,
+  isWithinRadius,
+};
+
+export default locationUtils;

@@ -1,6 +1,6 @@
 import { LatLng } from 'react-native-maps';
-import { Posto } from '../../types/models';
-export * from '../../types/models';
+import { Posto } from '../../../types/models/Posto';
+export * from '../../../types/models';
 
 export interface MapProps {
   stations: Posto[];
@@ -15,6 +15,10 @@ export interface MapProps {
   style?: any;
   searchRadius: number;
   mapRef?: React.RefObject<any>;
+  center?: [number, number];
+  zoom?: number;
+  allowInteraction?: boolean;
+  selectedStation?: Posto | null;
 }
 
 export interface UserLocation {

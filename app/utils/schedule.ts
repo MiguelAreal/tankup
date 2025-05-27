@@ -123,4 +123,11 @@ export const getNextOpeningTime = (horario: Horario): string | null => {
   }
 
   return (tomorrowSchedule as { abertura: string; fecho: string }).abertura;
-}; 
+};
+
+const scheduleUtils = {
+  isStationOpen,
+  getNextOpeningTime,
+};
+
+export default scheduleUtils; 

@@ -1,9 +1,10 @@
 import axios from 'axios';
-import { Posto } from '../types/models';
+import { Posto } from '../../types/models/Posto';
 
 // API Configuration
 const API_CONFIG = {
   baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://tankup-backend.onrender.com',
+  //baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
   timeout: 5000,
   headers: {
     'Content-Type': 'application/json',
@@ -83,3 +84,13 @@ export const fetchStationsByLocation = async (params: SearchParams): Promise<Pos
     throw error;
   }
 };
+
+const apiUtils = {
+  fetchNearbyStations,
+  fetchStationsByLocation,
+  api,
+  ENDPOINTS,
+  ERROR_MESSAGES,
+};
+
+export default apiUtils;

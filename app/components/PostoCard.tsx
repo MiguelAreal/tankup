@@ -5,18 +5,24 @@ import { Animated, Image, Linking, Platform, Text, TouchableOpacity, View } from
 import { useAppContext } from '../../context/AppContext';
 import stringsEN from '../assets/strings.en.json';
 import stringsPT from '../assets/strings.pt.json';
-import { Posto } from '../types/models';
-import { PostoCardProps } from '../types/models/PostoCardProps';
-import { Strings } from '../types/strings';
+import { Posto } from '../../types/models/Posto';
 import { getBrandImage } from '../utils/brandImages';
 import { calculateDistance } from '../utils/location';
 import { isStationOpen } from '../utils/schedule';
 
-interface ExtendedPostoCardProps extends PostoCardProps {
+type Strings = typeof stringsEN;
+
+interface ExtendedPostoCardProps {
+  station: Posto;
+  userLocation: {
+    latitude: number;
+    longitude: number;
+  };
+  selectedFuelType: string;
   isSelected?: boolean;
 }
 
-const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, selectedFuelType, isSelected }) => {
+const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, selectedFuelType, isSelected }) => {
   const { preferredNavigationApp, language } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   const [isFavorite, setIsFavorite] = useState(false);
@@ -25,14 +31,14 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       try {
-        const isFavorite = await AsyncStorage.getItem(`favorite_${posto.idDgeg}`);
+        const isFavorite = await AsyncStorage.getItem(`favorite_${station.id}`);
         setIsFavorite(isFavorite === 'true');
       } catch (error) {
         // Silent error handling
       }
     };
     checkFavoriteStatus();
-  }, [posto.idDgeg]);
+  }, [station.id]);
 
   useEffect(() => {
     if (isSelected) {
@@ -55,21 +61,21 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
   const toggleFavorite = async () => {
     try {
       const newFavoriteStatus = !isFavorite;
-      await AsyncStorage.setItem(`favorite_${posto.idDgeg}`, String(newFavoriteStatus));
+      await AsyncStorage.setItem(`favorite_${station.id}`, String(newFavoriteStatus));
       setIsFavorite(newFavoriteStatus);
     } catch (error) {
       // Silent error handling
     }
   };
 
-  const isOpen = posto.horario ? isStationOpen(posto.horario) : false;
-  const selectedFuel = posto.combustiveis?.find(f => f.tipo === selectedFuelType);
+  const isOpen = station.horario ? isStationOpen(station.horario) : false;
+  const selectedFuel = station.combustiveis?.find((f: { tipo: string }) => f.tipo === selectedFuelType);
   
-  const distance = posto.localizacao ? calculateDistance(
+  const distance = station.localizacao ? calculateDistance(
     userLocation.latitude,
     userLocation.longitude,
-    posto.localizacao.coordinates[1],
-    posto.localizacao.coordinates[0]
+    station.localizacao.coordinates[1],
+    station.localizacao.coordinates[0]
   ) : 0;
 
   const handleNavigate = (station: Posto) => {
@@ -160,20 +166,20 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
         {/* Logo and basic info */}
         <View className="flex-row items-center flex-1">
           <Image
-            source={getBrandImage(posto.marca)}
+            source={getBrandImage(station.marca)}
             style={{ width: 40, height: 40, marginRight: 8 }}
             resizeMode="contain"
           />
           <View className="flex-1">
             <Text className="text-base font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
-              {posto.nome}
+              {station.nome}
             </Text>
             <Text className="text-xs text-slate-600 dark:text-slate-400">
-              {posto.marca}
+              {station.marca}
             </Text>
-            {posto.morada && (
+            {station.morada && (
               <Text className="text-xs text-slate-500 dark:text-slate-500" numberOfLines={1}>
-                {posto.morada.localidade}
+                {station.morada.localidade}
               </Text>
             )}
           </View>
@@ -234,7 +240,7 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ posto, userLocation, sele
 
         {/* Navigation button */}
         <TouchableOpacity
-          onPress={() => handleNavigate(posto)}
+          onPress={() => handleNavigate(station)}
           className="bg-blue-600 dark:bg-blue-500 px-4 py-2 rounded-lg flex-row items-center"
         >
           <Ionicons name={getNavigationIcon()} size={16} color="white" />

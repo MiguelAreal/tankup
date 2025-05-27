@@ -1,5 +1,5 @@
 export interface Posto {
-  idDgeg: string;
+  id: string;
   nome: string;
   marca: string;
   morada: {
@@ -21,4 +21,6 @@ export interface Posto {
   }>;
   ultimaAtualizacao: string;
   distancia?: number;
-} 
+}
+
+export default Posto; 

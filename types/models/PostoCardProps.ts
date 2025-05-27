@@ -7,4 +7,6 @@ export interface PostoCardProps {
     longitude: number;
   };
   selectedFuelType: string;
-} 
+}
+
+export default PostoCardProps; 
