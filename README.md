@@ -10,10 +10,11 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 * Localização GPS em tempo real
 * Consulta de preços de combustível (gasolina, gasóleo, GPL, etc.)
-* Ordenação por preço ou distância
+* Ordenação por preço ou distância.
 * Abertura direta de rotas em Google Maps, Waze ou Apple Maps
-* Guardar postos favoritos
+* Guardar postos favoritos localmente 
 * Interface simples, com botões grandes e modo escuro
+* Pesquisa de postos num distrito ou cidade específico
 
 ---
 
@@ -21,9 +22,9 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 **Portugal**:
 
-* Dados disponibilizados pelo site da DGEG:
-
+* Dados disponibilizados pela DGEG:
   * [https://precoscombustiveis.dgeg.gov.pt](https://precoscombustiveis.dgeg.gov.pt)
+* E por uma API interna.
 
 ---
 
@@ -32,7 +33,7 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 #### Frontend / App
 
 * Plataforma: Expo-Router (React Native)
-* UI: Material Design com botões grandes e tema escuro
+* UI: Material Design
 * GPS: Expo Location
 * Requests: fetch/axios
 
@@ -40,25 +41,25 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 ### \:rocket: MVP - Primeira Versão
 
-1. Obter localização atual do utilizador.
-2. Identificar distrito e concelho a partir da localização atual.
-3. Mostrar lista dos 5 postos mais baratos num raio de 5 km.
-4. Mostrar tipo de combustível, preço, distância atual.
-5. Botões "Abrir no Google Maps", "Abrir no Waze".
-6. Pesquisa por tipo de combustível.
-7. Permitir em alternativa pesquisar por Distrito e Concelho manualmente.
+1. Obter localização atual do utilizador. ✅
+2. Mostrar lista dos postos por filtro num raio de 5/10/20 km. ✅
+3. Mostrar tipo de combustível, preço, distância atual. ✅
+4. Botões "Abrir no Google Maps", "Abrir no Waze". ✅
+5. Pesquisa por tipo de combustível. ✅
+6. Permitir em alternativa pesquisar por Distrito e Concelho manualmente. ✅
+7. Funcionalidades sem permitir localização. ✅
 
 ---
 
 ### \:rocket: Necessidades
 
 1. Tem que ser uma aplicação **leve**, com um máximo de 30 MB.
-2. Tem que estar bem optimizada para head units menos potentes.
+2. Tem que estar bem optimizada para dispositivos menos potentes.
 3. Sem conta para utilização — completamente como ferramenta anónima.
 
 ---
 
-### \:art: Ideia de Interface (UI)
+### \:art: Interface (UI)
 
 #### Ecrã principal
 
@@ -69,15 +70,13 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
   * Tipo e preço do combustível
   * Distância (ex: 2.3 km)
   * Botões: `[Maps] [Waze] [Apple Maps]`
-  * Ícone da marca (Galp, BP, Prio, etc.) opcional
+  * Ícone da marca (Galp, BP, Prio, etc.)
 
 ---
 
 ### \:white\_check\_mark: Futuras Funcionalidades
 
 * Voz: "Leva-me ao posto mais barato"
-* Histórico de abastecimentos
-* Integração com sensores OBD2 para mostrar autonomia restante de combustível
 * Cache offline temporária para zonas com pouca ligação
 
 ---
@@ -85,7 +84,7 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 ### \:lock: Privacidade e Permissões
 
 * A aplicação **não recolhe nem armazena dados pessoais**.
-* A localização é usada **apenas localmente** para apresentar postos de abastecimento próximos.
+* A localização é usada **apenas** para apresentar postos de abastecimento próximos.
 
 ---
 
