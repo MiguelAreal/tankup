@@ -7,6 +7,7 @@ export interface MapProps {
   selectedFuelType: string;
   onMarkerPress: (station: Posto | null) => void;
   onMapPress?: (coordinate: LatLng) => void;
+  onStationListScroll?: (station: Posto) => void;
   initialZoom?: number;
   style?: any;
   searchRadius: number;

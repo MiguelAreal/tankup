@@ -38,11 +38,62 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
   );
 
   return (
-    <View>
+    <View className="flex-row items-center px-4 py-1">
+      {/* Sort Icon Button */}
+      {onSelectSort && (
+        <View className="mr-2">
+          <TouchableOpacity
+            onPress={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+            className="items-center justify-center w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700"
+            accessibilityLabel={strings.station.sortBy[selectedSort]}
+          >
+            <Ionicons
+              name={sortOptions.find(opt => opt.id === selectedSort)?.icon as any}
+              size={22}
+              color="#2563eb"
+            />
+          </TouchableOpacity>
+          {/* Dropdown menu */}
+          {isSortDropdownOpen && (
+            <View className="absolute z-50 mt-2 left-0 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 min-w-[160px]">
+              {sortOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  className={`flex-row items-center px-3 py-2 ${
+                    selectedSort === option.id
+                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                  onPress={() => {
+                    onSelectSort(option.id as any);
+                    setTimeout(() => setIsSortDropdownOpen(false), 100);
+                  }}
+                >
+                  <Ionicons
+                    name={option.icon as any}
+                    size={18}
+                    color={selectedSort === option.id ? '#2563eb' : '#64748b'}
+                  />
+                  <Text
+                    className={`ml-2 text-sm ${
+                      selectedSort === option.id
+                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                        : 'text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    {strings.station.sortBy[option.id as keyof typeof strings.station.sortBy]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+      {/* Fuel Types ScrollView */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className="px-4 py-1"
+        className="flex-1"
       >
         {fuelTypes.map((type) => (
           <TouchableOpacity
@@ -73,68 +124,6 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
           </TouchableOpacity>
         ))}
       </ScrollView>
-
-      {/* Sort Dropdown - Only show if onSelectSort is provided */}
-      {onSelectSort && (
-        <View className="px-4 py-2">
-          <TouchableOpacity
-            className="flex-row items-center justify-between bg-slate-200 dark:bg-slate-700 p-3 rounded-lg"
-            onPress={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-          >
-            <View className="flex-row items-center">
-              <Ionicons
-                name={sortOptions.find(opt => opt.id === selectedSort)?.icon as any}
-                size={20}
-                color="#64748b"
-              />
-              <Text className="ml-2 text-slate-700 dark:text-slate-300">
-                {strings.station.sortBy[selectedSort]}
-              </Text>
-            </View>
-            <Ionicons
-              name={isSortDropdownOpen ? "chevron-up" : "chevron-down"}
-              size={20}
-              color="#64748b"
-            />
-          </TouchableOpacity>
-
-          {isSortDropdownOpen && (
-            <View className="mt-2 bg-white dark:bg-slate-800 rounded-lg shadow-lg">
-              {sortOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  className={`p-3 ${
-                    selectedSort === option.id
-                      ? 'bg-blue-50 dark:bg-blue-900/30'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  }`}
-                  onPress={() => {
-                    onSelectSort(option.id as any);
-                    setTimeout(() => setIsSortDropdownOpen(false), 100);
-                  }}
-                >
-                  <View className="flex-row items-center">
-                    <Ionicons
-                      name={option.icon as any}
-                      size={20}
-                      color={selectedSort === option.id ? '#2563eb' : '#64748b'}
-                    />
-                    <Text
-                      className={`ml-2 ${
-                        selectedSort === option.id
-                          ? 'text-blue-600 dark:text-blue-400 font-medium'
-                          : 'text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {strings.station.sortBy[option.id as keyof typeof strings.station.sortBy]}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
     </View>
   );
 };
