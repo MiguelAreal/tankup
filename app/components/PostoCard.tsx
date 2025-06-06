@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { Animated, Image, Linking, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
@@ -9,6 +8,7 @@ import stringsPT from '../assets/strings.pt.json';
 import { getBrandImage } from '../utils/brandImages';
 import { calculateDistance } from '../utils/location';
 import { isStationOpen } from '../utils/schedule';
+import { isFavorite, removeFavorite, saveFavorite } from '../utils/storage';
 
 type Strings = typeof stringsEN;
 
@@ -23,48 +23,53 @@ interface ExtendedPostoCardProps {
 }
 
 const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, selectedFuelType, isSelected }) => {
-  const { preferredNavigationApp, language } = useAppContext();
+  const { preferredNavigationApp, language, theme } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
   const highlightAnim = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const checkFavoriteStatus = async () => {
-      try {
-        const isFavorite = await AsyncStorage.getItem(`favorite_${station.id}`);
-        setIsFavorite(isFavorite === 'true');
-      } catch (error) {
-        // Silent error handling
-      }
-    };
     checkFavoriteStatus();
   }, [station.id]);
 
   useEffect(() => {
     if (isSelected) {
-      // Start highlight animation
+      // Start highlight animation with a more noticeable effect
       Animated.sequence([
         Animated.timing(highlightAnim, {
           toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(highlightAnim, {
+          toValue: 0.5,
           duration: 300,
           useNativeDriver: true,
         }),
         Animated.timing(highlightAnim, {
           toValue: 0,
-          duration: 1000,
+          duration: 500,
           useNativeDriver: true,
         })
       ]).start();
     }
   }, [isSelected]);
 
-  const toggleFavorite = async () => {
+  const checkFavoriteStatus = async () => {
+    const favorite = await isFavorite(station.id);
+    setIsFavorited(favorite);
+  };
+
+  const handleFavoritePress = async () => {
     try {
-      const newFavoriteStatus = !isFavorite;
-      await AsyncStorage.setItem(`favorite_${station.id}`, String(newFavoriteStatus));
-      setIsFavorite(newFavoriteStatus);
+      if (isFavorited) {
+        await removeFavorite(station.id);
+      } else {
+        await saveFavorite(station);
+      }
+      setIsFavorited(!isFavorited);
     } catch (error) {
-      // Silent error handling
+      console.error('Error toggling favorite:', error);
     }
   };
 
@@ -145,11 +150,32 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
     }
   };
 
+  const getFuelPrice = (type: string) => {
+    const fuel = station.combustiveis.find(c => c.tipo === type);
+    return fuel ? fuel.preco : null;
+  };
+
   return (
-    <View 
-      className={`w-full mb-2 p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm ${
-        isSelected ? 'border-2 border-blue-500' : 'border border-slate-200 dark:border-slate-700'
-      }`}
+    <Animated.View 
+      className="w-full mb-2 p-4 rounded-xl shadow-sm"
+      style={{
+        transform: [{
+          scale: highlightAnim.interpolate({
+            inputRange: [0, 0.5, 1],
+            outputRange: [1, 1.02, 1]
+          })
+        }],
+        backgroundColor: highlightAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [
+            theme.card,
+            theme.primaryLight,
+            theme.card
+          ]
+        }),
+        borderWidth: isSelected ? 2 : 1,
+        borderColor: isSelected ? theme.primary : theme.border
+      }}
     >
       {/* Main row: Logo, Info */}
       <View className="flex-row items-center justify-between">
@@ -161,14 +187,24 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
             resizeMode="contain"
           />
           <View className="flex-1">
-            <Text className="text-base font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
+            <Text style={{ 
+              fontSize: 16,
+              fontWeight: 'bold',
+              color: theme.text
+            }} numberOfLines={1}>
               {station.nome}
             </Text>
-            <Text className="text-xs text-slate-600 dark:text-slate-400">
+            <Text style={{ 
+              fontSize: 12,
+              color: theme.textSecondary
+            }}>
               {station.marca}
             </Text>
             {station.morada && (
-              <Text className="text-xs text-slate-500 dark:text-slate-500" numberOfLines={1}>
+              <Text style={{ 
+                fontSize: 12,
+                color: theme.textSecondary
+              }} numberOfLines={1}>
                 {station.morada.localidade}
               </Text>
             )}
@@ -177,69 +213,70 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
 
         {/* Right side: Favorite and Price */}
         <View className="items-end">
-          <TouchableOpacity 
-            onPress={toggleFavorite} 
-            className="p-1 mb-1"
-          >
-            <Ionicons 
-              name={isFavorite ? "heart" : "heart-outline"} 
-              size={20} 
-              color={isFavorite ? "#ef4444" : "#64748b"} 
+          <TouchableOpacity onPress={handleFavoritePress}>
+            <Ionicons
+              name={isFavorited ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorited ? theme.primary : theme.textSecondary}
             />
           </TouchableOpacity>
-
           {selectedFuel && (
-            <View className="bg-blue-50 dark:bg-blue-900/30 rounded-lg px-7 py-1">
-              <Text className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                {strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]}
-              </Text>
-              <Text className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                {selectedFuel.preco.toFixed(3)}€
-              </Text>
-            </View>
+            <Text style={{ 
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: theme.text,
+              marginTop: 4
+            }}>
+              {selectedFuel.preco}€
+            </Text>
           )}
         </View>
       </View>
 
       {/* Bottom row: Status, Distance, Navigation */}
-      <View className="flex-row items-center justify-between mt-2">
-        {/* Status and distance */}
+      <View className="flex-row items-center justify-between mt-4">
         <View className="flex-row items-center">
-          <View className="flex-row items-center mr-3">
-            <Ionicons 
-              name="time-outline" 
-              size={14} 
-              color={isOpen ? "#16a34a" : "#dc2626"} 
-            />
-            <Text className={`text-xs font-medium ml-1 ${isOpen ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {isOpen ? strings.station.open : strings.station.closed}
-            </Text>
-          </View>
-          
-          <View className="flex-row items-center">
-            <Ionicons 
-              name="location-outline" 
-              size={14} 
-              color="#64748b" 
-            />
-            <Text className="text-xs text-slate-600 dark:text-slate-400 ml-1">
-              {distance.toFixed(1)} km
-            </Text>
-          </View>
+          <View style={{ 
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: isOpen ? '#22c55e' : '#ef4444',
+            marginRight: 4
+          }} />
+          <Text style={{ 
+            fontSize: 12,
+            color: theme.textSecondary
+          }}>
+            {isOpen ? strings.station.open : strings.station.closed}
+          </Text>
         </View>
 
-        {/* Navigation button */}
+        <View className="flex-row items-center">
+          <Ionicons name="location" size={16} color={theme.textSecondary} />
+          <Text style={{ 
+            fontSize: 12,
+            color: theme.textSecondary,
+            marginLeft: 4
+          }}>
+            {distance.toFixed(1)} km
+          </Text>
+        </View>
+
         <TouchableOpacity
+          className="flex-row items-center"
           onPress={() => handleNavigate(station)}
-          className="bg-blue-600 dark:bg-blue-500 px-4 py-2 rounded-lg flex-row items-center"
         >
-          <Ionicons name={getNavigationIcon()} size={16} color="white" />
-          <Text className="text-white text-sm font-medium ml-1">
+          <Ionicons name={getNavigationIcon()} size={20} color={theme.primary} />
+          <Text style={{ 
+            fontSize: 12,
+            color: theme.primary,
+            marginLeft: 4
+          }}>
             {strings.station.openInMaps}
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 };
 

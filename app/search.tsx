@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
 import { Strings } from '../types/strings';
@@ -19,8 +20,9 @@ type District = {
 type Screen = 'districts' | 'cities';
 
 export default function SearchScreen() {
+  const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const router = useRouter();
-  const { language, selectedFuelTypes, setSearchState, darkMode } = useAppContext();
+  const { language, selectedFuelTypes, setSearchState, darkMode, theme } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,8 +117,7 @@ export default function SearchScreen() {
   };
 
   const handleSearch = async () => {
-    if (!selectedFuelType) {
-      setError(language === 'en' ? 'Please select a fuel type' : 'Por favor, selecione um tipo de combustível');
+    if (isLoading) {
       return;
     }
 
@@ -129,6 +130,13 @@ export default function SearchScreen() {
     setError(null);
 
     try {
+      // Primeiro, limpe o subscription de localização
+      if (locationSubscription.current) {
+        console.log('🔄 Cleaning up location subscription before search');
+        locationSubscription.current.remove();
+        locationSubscription.current = null;
+      }
+
       const results = await fetchStationsByLocation({
         distrito: selectedDistrict?.name,
         municipio: selectedCity || undefined,
@@ -146,7 +154,17 @@ export default function SearchScreen() {
         sortBy: selectedSort
       });
       
-      router.replace('/');
+      // Navigate back to main page with search parameters
+      router.replace({
+        pathname: '/',
+        params: {
+          searchType: 'location',
+          distrito: selectedDistrict?.name,
+          municipio: selectedCity || undefined,
+          fuelType: selectedFuelType,
+          sortBy: selectedSort
+        }
+      });
     } catch (err) {
       setError(language === 'en' ? 'Error searching for stations' : 'Erro ao pesquisar postos');
     } finally {
@@ -280,10 +298,13 @@ export default function SearchScreen() {
           backgroundColor="transparent"
         />
         <SafeAreaView 
-          className="flex-1 bg-slate-100 dark:bg-slate-900 justify-center items-center"
-          style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
+          className="flex-1 justify-center items-center"
+          style={{ 
+            paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+            backgroundColor: theme.background
+          }}
         >
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={theme.primary} />
         </SafeAreaView>
       </>
     );
@@ -297,17 +318,20 @@ export default function SearchScreen() {
         backgroundColor="transparent"
       />
       <SafeAreaView 
-        className="flex-1 bg-slate-100 dark:bg-slate-900"
-        style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
+        className="flex-1"
+        style={{ 
+          paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+          backgroundColor: theme.background
+        }}
       >
         {/* Header */}
-        <View className="px-4 py-2 flex-row items-center justify-between">
+        <View style={{ backgroundColor: theme.background }} className="px-4 py-2 flex-row items-center justify-between">
           <TouchableOpacity 
             onPress={handleBackPress}
             className="flex-row items-center"
           >
-            <Ionicons name="arrow-back" size={24} color="#2563eb" />
-            <Text className="ml-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
+            <Ionicons name="arrow-back" size={24} color={theme.primary} />
+            <Text style={{ color: theme.primary }} className="ml-2 text-xl font-semibold">
               {currentScreen === 'districts' ? strings.search.district : selectedDistrict?.name}
             </Text>
           </TouchableOpacity>
@@ -315,18 +339,15 @@ export default function SearchScreen() {
           <View className="flex-row">
             <TouchableOpacity
               onPress={() => setShowFuelTypeModal(true)}
-              className="mr-2 bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
+              style={{ backgroundColor: theme.card }}
+              className="mr-2 px-3 py-2 rounded-lg flex-row items-center"
             >
               <Ionicons
                 name={selectedFuelType ? "checkmark-circle" : "options"}
                 size={20}
-                color={selectedFuelType ? "#2563eb" : "#64748b"}
+                color={selectedFuelType ? theme.primary : theme.textSecondary}
               />
-              <Text className={`ml-2 ${
-                selectedFuelType
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-slate-700 dark:text-slate-300'
-              }`}>
+              <Text style={{ color: selectedFuelType ? theme.primary : theme.text }} className="ml-2">
                 {selectedFuelType
                   ? strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]
                   : strings.search.fuelType}
@@ -335,14 +356,15 @@ export default function SearchScreen() {
 
             <TouchableOpacity
               onPress={() => setShowSortModal(true)}
-              className="bg-white dark:bg-slate-800 px-3 py-2 rounded-lg flex-row items-center"
+              style={{ backgroundColor: theme.card }}
+              className="px-3 py-2 rounded-lg flex-row items-center"
             >
               <Ionicons
                 name={selectedSort === 'mais_barato' ? 'trending-down' : 'trending-up'}
                 size={20}
-                color="#64748b"
+                color={theme.textSecondary}
               />
-              <Text className="ml-2 text-slate-700 dark:text-slate-300">
+              <Text style={{ color: theme.text }} className="ml-2">
                 {strings.station.sortBy[selectedSort]}
               </Text>
             </TouchableOpacity>
@@ -350,36 +372,43 @@ export default function SearchScreen() {
         </View>
 
         {/* Search Bar */}
-        <View className="px-4 py-3">
+        <View style={{ backgroundColor: theme.background }} className="px-4 py-3">
           <TextInput
-            className="bg-white dark:bg-slate-800 p-4 rounded-lg text-slate-800 dark:text-slate-200 text-base"
+            style={{ 
+              backgroundColor: theme.card,
+              color: theme.text,
+              padding: 16,
+              borderRadius: 8,
+              fontSize: 16
+            }}
             placeholder={currentScreen === 'districts' ? strings.search.placeholder : strings.search.municipality}
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={theme.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
         {/* List */}
-        <ScrollView className="flex-1 px-4">
+        <ScrollView style={{ backgroundColor: theme.background }} className="flex-1 px-4">
           {currentScreen === 'districts' ? (
             <>
               {/* Show matching cities first if there's a search query */}
               {searchQuery && filteredCities.length > 0 && (
                 <View className="mb-6">
-                  <Text className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                  <Text style={{ color: theme.text }} className="text-base font-semibold mb-3">
                     {strings.search.municipality}
                   </Text>
                   {filteredCities.map((cityData) => (
                     <TouchableOpacity
                       key={`${cityData.district.id}-${cityData.city}`}
-                      className="p-4 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                      style={{ backgroundColor: theme.card }}
+                      className="p-4 mb-3 rounded-lg shadow-sm"
                       onPress={() => handleCitySelect(cityData)}
                     >
-                      <Text className="text-lg text-slate-800 dark:text-slate-200 font-medium">
+                      <Text style={{ color: theme.text }} className="text-lg font-medium">
                         {cityData.city}
                       </Text>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                      <Text style={{ color: theme.textSecondary }} className="text-sm mt-1">
                         {cityData.district.name}
                       </Text>
                     </TouchableOpacity>
@@ -389,19 +418,20 @@ export default function SearchScreen() {
 
               {/* Show districts */}
               <View>
-                <Text className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                <Text style={{ color: theme.text }} className="text-base font-semibold mb-3">
                   {strings.search.district}
                 </Text>
                 {filteredDistricts.map((district) => (
                   <TouchableOpacity
                     key={district.id}
-                    className="p-4 mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                    style={{ backgroundColor: theme.card }}
+                    className="p-4 mb-3 rounded-lg shadow-sm"
                     onPress={() => handleDistrictSelect(district)}
                   >
-                    <Text className="text-lg text-slate-800 dark:text-slate-200 font-medium">
+                    <Text style={{ color: theme.text }} className="text-lg font-medium">
                       {district.name}
                     </Text>
-                    <Text className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    <Text style={{ color: theme.textSecondary }} className="text-sm mt-1">
                       {district.cities.length} {strings.search.municipality.toLowerCase()}
                     </Text>
                   </TouchableOpacity>
@@ -413,25 +443,20 @@ export default function SearchScreen() {
             filteredCities.map((cityData) => (
               <TouchableOpacity
                 key={`${cityData.district.id}-${cityData.city}`}
-                className={`p-4 mb-3 rounded-lg shadow-sm ${
-                  selectedCity === cityData.city
-                    ? 'bg-blue-600'
-                    : 'bg-white dark:bg-slate-800'
-                }`}
+                style={{ 
+                  backgroundColor: selectedCity === cityData.city ? theme.primary : theme.card
+                }}
+                className="p-4 mb-3 rounded-lg shadow-sm"
                 onPress={() => setSelectedCity(cityData.city)}
               >
-                <Text className={`text-lg font-medium ${
-                  selectedCity === cityData.city
-                    ? 'text-white'
-                    : 'text-slate-800 dark:text-slate-200'
-                }`}>
+                <Text style={{ 
+                  color: selectedCity === cityData.city ? '#ffffff' : theme.text
+                }} className="text-lg font-medium">
                   {cityData.city}
                 </Text>
-                <Text className={`text-sm mt-1 ${
-                  selectedCity === cityData.city
-                    ? 'text-blue-100'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}>
+                <Text style={{ 
+                  color: selectedCity === cityData.city ? 'rgba(255, 255, 255, 0.8)' : theme.textSecondary
+                }} className="text-sm mt-1">
                   {cityData.district.name}
                 </Text>
               </TouchableOpacity>
@@ -441,11 +466,18 @@ export default function SearchScreen() {
 
         {/* Search Button */}
         {currentScreen === 'cities' && (
-          <View className="p-4">
+          <View style={{ backgroundColor: theme.background }} className="p-4">
             <TouchableOpacity
-              className={`p-4 rounded-lg shadow-sm ${
-                selectedFuelType ? 'bg-blue-600' : 'bg-slate-400'
-              }`}
+              style={{ 
+                backgroundColor: selectedFuelType ? theme.primary : theme.textSecondary,
+                padding: 16,
+                borderRadius: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 2,
+                elevation: 2
+              }}
               onPress={() => handleSearch()}
               disabled={isLoading || !selectedFuelType}
             >
@@ -459,7 +491,7 @@ export default function SearchScreen() {
             </TouchableOpacity>
 
             {error && (
-              <Text className="text-red-500 mt-4 text-center">
+              <Text style={{ color: '#ef4444' }} className="mt-4 text-center">
                 {error}
               </Text>
             )}

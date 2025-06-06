@@ -21,6 +21,7 @@ export default function SettingsScreen() {
   const { 
     darkMode, 
     setDarkMode, 
+    theme,
     preferredNavigationApp, 
     setPreferredNavigationApp, 
     searchRadius, 
@@ -145,10 +146,13 @@ export default function SettingsScreen() {
           backgroundColor="transparent"
         />
         <SafeAreaView 
-          className="flex-1 bg-slate-100 dark:bg-slate-900 justify-center items-center"
-          style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
+          className="flex-1 justify-center items-center"
+          style={{ 
+            paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+            backgroundColor: theme.background
+          }}
         >
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={theme.primary} />
         </SafeAreaView>
       </>
     );
@@ -162,63 +166,102 @@ export default function SettingsScreen() {
         backgroundColor="transparent"
       />
       <SafeAreaView 
-        className="flex-1 bg-slate-100 dark:bg-slate-900"
-        style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}
+        className="flex-1"
+        style={{ 
+          paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+          backgroundColor: theme.background
+        }}
       >
         <ScrollView className="flex-1">
-          {/* Botão Voltar */}
-          <View className="px-4 py-2">
+          {/* Back Button */}
+          <View style={{ backgroundColor: theme.card }}>
             <TouchableOpacity 
               onPress={handleBackPress}
-              className="flex-row items-center"
+              className="flex-row items-center px-4 py-2"
             >
-              <Ionicons name="arrow-back" size={24} color="#2563eb" />
-              <Text className="ml-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
+              <Ionicons name="arrow-back" size={24} color={theme.primary} />
+              <Text style={{ 
+                marginLeft: 8,
+                fontSize: 20,
+                fontWeight: '600',
+                color: theme.primary
+              }}>
                 {strings.settings.title}
               </Text>
             </TouchableOpacity>
           </View>
           
           <View className="p-4">
-            {/* Toggle de Modo Escuro */}
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            {/* Dark Mode Toggle */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
               <View className="flex-row justify-between items-center">
                 <View className="flex-row items-center">
-                  <Ionicons name="moon" size={24} color="#2563eb" />
-                  <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                  <Ionicons name="moon" size={24} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
                     {strings.settings.darkMode}
                   </Text>
                 </View>
                 <Switch
                   value={darkMode}
                   onValueChange={handleDarkModeToggle}
-                  trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
+                  trackColor={{ false: '#d1d5db', true: theme.primary }}
                   thumbColor={darkMode ? '#ffffff' : '#f3f4f6'}
                   testID="darkModeSwitch"
                 />
               </View>
             </View>
             
-            {/* App de Navegação Preferido */}
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            {/* Preferred Navigation App */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
               <TouchableOpacity 
                 className="flex-row justify-between items-center"
                 onPress={() => setIsNavDropdownOpen(!isNavDropdownOpen)}
               >
                 <View className="flex-row items-center">
-                  <Ionicons name="navigate" size={20} color="#2563eb" />
-                  <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                  <Ionicons name="navigate" size={20} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
                     {strings.settings.navigationApp}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
-                  <Text className="text-slate-600 dark:text-slate-400 mr-2">
+                  <Text style={{ 
+                    marginRight: 8,
+                    color: theme.text
+                  }}>
                     {getCurrentNavAppName()}
                   </Text>
                   <Ionicons 
                     name={isNavDropdownOpen ? "chevron-up" : "chevron-down"} 
                     size={20} 
-                    color="#94a3b8" 
+                    color={darkMode ? "#94a3b8" : "#64748b"} 
                   />
                 </View>
               </TouchableOpacity>
@@ -294,26 +337,43 @@ export default function SettingsScreen() {
               )}
             </View>
             
-            {/* Raio de Pesquisa */}
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            {/* Search Radius */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
               <TouchableOpacity 
                 className="flex-row justify-between items-center"
                 onPress={() => setIsRadiusDropdownOpen(!isRadiusDropdownOpen)}
               >
                 <View className="flex-row items-center">
-                  <Ionicons name="location" size={20} color="#2563eb" />
-                  <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                  <Ionicons name="location" size={20} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
                     {strings.settings.searchRadius}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
-                  <Text className="text-slate-600 dark:text-slate-400 mr-2">
+                  <Text style={{ 
+                    marginRight: 8,
+                    color: theme.text
+                  }}>
                     {getCurrentRadiusText()}
                   </Text>
                   <Ionicons 
                     name={isRadiusDropdownOpen ? "chevron-up" : "chevron-down"} 
                     size={20} 
-                    color="#94a3b8" 
+                    color={darkMode ? "#94a3b8" : "#64748b"} 
                   />
                 </View>
               </TouchableOpacity>
@@ -321,7 +381,7 @@ export default function SettingsScreen() {
               {isRadiusDropdownOpen && (
                 <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
                   <View className="flex-row justify-between mt-4 gap-2">
-                    {[5, 10, 15, 20].map((radius) => (
+                    {[5, 10, 15].map((radius) => (
                       <TouchableOpacity
                         key={radius}
                         className={`flex-1 py-2 rounded-lg ${
@@ -353,25 +413,42 @@ export default function SettingsScreen() {
             
             {/* Map Provider Selection - Only show on web */}
             {Platform.OS === 'web' && (
-              <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+              <View style={{ 
+                backgroundColor: theme.card,
+                borderRadius: 8,
+                padding: 16,
+                marginBottom: 24,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 2,
+                elevation: 2
+              }}>
                 <TouchableOpacity 
                   className="flex-row justify-between items-center"
                   onPress={() => setIsMapDropdownOpen(!isMapDropdownOpen)}
                 >
                   <View className="flex-row items-center">
-                    <Ionicons name="map" size={20} color="#2563eb" />
-                    <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                    <Ionicons name="map" size={20} color={theme.primary} />
+                    <Text style={{ 
+                      marginLeft: 12,
+                      fontSize: 18,
+                      color: theme.text
+                    }}>
                       Estilo do Mapa
                     </Text>
                   </View>
                   <View className="flex-row items-center">
-                    <Text className="text-slate-600 dark:text-slate-400 mr-2">
+                    <Text style={{ 
+                      marginRight: 8,
+                      color: theme.text
+                    }}>
                       {getCurrentMapProviderName()}
                     </Text>
                     <Ionicons 
                       name={isMapDropdownOpen ? "chevron-up" : "chevron-down"} 
                       size={20} 
-                      color="#94a3b8" 
+                      color={darkMode ? "#94a3b8" : "#64748b"} 
                     />
                   </View>
                 </TouchableOpacity>
@@ -404,26 +481,43 @@ export default function SettingsScreen() {
               </View>
             )}
 
-            {/* Idioma */}
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            {/* Language Selection */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
               <TouchableOpacity 
                 className="flex-row justify-between items-center"
                 onPress={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
               >
                 <View className="flex-row items-center">
-                  <Ionicons name="language" size={20} color="#2563eb" />
-                  <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                  <Ionicons name="language" size={20} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
                     {strings.settings.language}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
-                  <Text className="text-slate-600 dark:text-slate-400 mr-2">
+                  <Text style={{ 
+                    marginRight: 8,
+                    color: theme.text
+                  }}>
                     {getCurrentLanguageName()}
                   </Text>
                   <Ionicons 
                     name={isLangDropdownOpen ? "chevron-up" : "chevron-down"} 
                     size={20} 
-                    color="#94a3b8" 
+                    color={darkMode ? "#94a3b8" : "#64748b"} 
                   />
                 </View>
               </TouchableOpacity>
@@ -478,15 +572,32 @@ export default function SettingsScreen() {
             </View>
 
             {/* Fuel Type Selection */}
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
               <View className="flex-row items-center mb-2">
-                <Ionicons name="water" size={24} color="#2563eb" />
-                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                <Ionicons name="water" size={24} color={theme.primary} />
+                <Text style={{ 
+                  marginLeft: 12,
+                  fontSize: 18,
+                  color: theme.text
+                }}>
                   {strings.settings.fuelType}
                 </Text>
               </View>
               
-              <Text className="text-slate-600 dark:text-slate-400 mb-4">
+              <Text style={{ 
+                marginBottom: 16,
+                color: theme.text
+              }}>
                 {language === 'en' 
                   ? 'Select up to 6 fuel types to display in the main screen'
                   : 'Selecione até 6 tipos de combustível para exibir na tela principal'}
@@ -498,7 +609,7 @@ export default function SettingsScreen() {
                     key={type.id}
                     className={`mr-2 mb-2 p-2 px-4 rounded-lg ${
                       selectedFuelTypes.includes(type.id)
-                        ? 'bg-blue-600'
+                        ? 'bg-blue-600 dark:bg-blue-500'
                         : 'bg-slate-200 dark:bg-slate-700'
                     }`}
                     onPress={() => handleFuelTypeToggle(type.id)}
@@ -507,7 +618,7 @@ export default function SettingsScreen() {
                       <Ionicons
                         name={type.icon as any}
                         size={20}
-                        color={selectedFuelTypes.includes(type.id) ? '#ffffff' : '#64748b'}
+                        color={selectedFuelTypes.includes(type.id) ? '#ffffff' : darkMode ? '#94a3b8' : '#64748b'}
                       />
                       <Text
                         className={`ml-2 ${
@@ -524,20 +635,39 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            {/* Sobre */}
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            {/* About */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
               <View className="flex-row items-center mb-2">
-                <Ionicons name="information-circle" size={24} color="#2563eb" />
-                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
+                <Ionicons name="information-circle" size={24} color={theme.primary} />
+                <Text style={{ 
+                  marginLeft: 12,
+                  fontSize: 18,
+                  color: theme.text
+                }}>
                   {strings.settings.about}
                 </Text>
               </View>
               
-              <Text className="text-slate-600 dark:text-slate-400 mb-2">
+              <Text style={{ 
+                marginBottom: 8,
+                color: theme.text
+              }}>
                 {strings.settings.aboutText}
               </Text>
               
-              <Text className="text-slate-600 dark:text-slate-400 mb-2">
+              <Text style={{ 
+                color: theme.text
+              }}>
                 {strings.settings.version}: 1.0.0
               </Text>
 
@@ -545,16 +675,20 @@ export default function SettingsScreen() {
                 className="mt-2"
                 onPress={() => Linking.openURL('https://github.com/MiguelAreal')}
               >
-                <Text className="text-blue-600 dark:text-blue-400">
-                {strings.settings.developer}
+                <Text style={{ 
+                  color: theme.text
+                }}>
+                  {strings.settings.developer}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className="mt-2"
                 onPress={() => Linking.openURL('https://precoscombustiveis.dgeg.gov.pt')}
               >
-                <Text className="text-blue-600 dark:text-blue-400">
-                {strings.settings.provider}
+                <Text style={{ 
+                  color: theme.text
+                }}>
+                  {strings.settings.provider}
                 </Text>
               </TouchableOpacity>
             </View>

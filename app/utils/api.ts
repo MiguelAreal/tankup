@@ -28,6 +28,15 @@ const ERROR_MESSAGES = {
   fetchFailed: 'Failed to fetch stations',
 } as const;
 
+// Logger function for API calls
+const logApiCall = (endpoint: string, params: any) => {
+  console.log('\n🌐 API Call:', {
+    endpoint,
+    params,
+    timestamp: new Date().toISOString()
+  });
+};
+
 /**
  * Fetch nearby stations by latitude, longitude, radius and fuel type.
  * @param lat Latitude
@@ -44,18 +53,24 @@ export async function fetchNearbyStations<T>(
   fuelType: string,
   sortBy: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto' = 'mais_barato',
 ): Promise<T> {
+  const params = { lat, lng, radius, fuelType, sortBy };
+  logApiCall(ENDPOINTS.nearby, params);
+  
   try {
-    const response = await api.get<T>(ENDPOINTS.nearby, {
-      params: {
-        lat,
-        lng,
-        radius,
-        fuelType,
-        sortBy,
-      },
+    const response = await api.get<T>(ENDPOINTS.nearby, { params });
+    console.log('✅ API Response:', {
+      endpoint: ENDPOINTS.nearby,
+      status: response.status,
+      resultsCount: Array.isArray(response.data) ? response.data.length : 'N/A'
     });
     return response.data;
   } catch (error: any) {
+    console.log('❌ API Error:', {
+      endpoint: ENDPOINTS.nearby,
+      error: error.code === 'ECONNREFUSED' 
+        ? `${ERROR_MESSAGES.connection} ${API_CONFIG.baseURL}`
+        : `API error: ${error.response?.statusText || error.message}`
+    });
     if (error.code === 'ECONNREFUSED') {
       throw new Error(`${ERROR_MESSAGES.connection} ${API_CONFIG.baseURL}`);
     }
@@ -71,6 +86,8 @@ export interface SearchParams {
 }
 
 export const fetchStationsByLocation = async (params: SearchParams): Promise<Posto[]> => {
+  logApiCall(ENDPOINTS.byLocation, params);
+  
   try {
     const queryParams = new URLSearchParams();
     if (params.distrito) queryParams.append('distrito', params.distrito);
@@ -79,8 +96,19 @@ export const fetchStationsByLocation = async (params: SearchParams): Promise<Pos
     if (params.sortBy) queryParams.append('sortBy', params.sortBy);
 
     const response = await api.get<Posto[]>(`${ENDPOINTS.byLocation}?${queryParams.toString()}`);
+    console.log('✅ API Response:', {
+      endpoint: ENDPOINTS.byLocation,
+      status: response.status,
+      resultsCount: response.data.length
+    });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
+    console.log('❌ API Error:', {
+      endpoint: ENDPOINTS.byLocation,
+      error: error.code === 'ECONNREFUSED'
+        ? `${ERROR_MESSAGES.connection} ${API_CONFIG.baseURL}`
+        : `API error: ${error.response?.statusText || error.message}`
+    });
     throw error;
   }
 };

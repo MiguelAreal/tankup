@@ -3,20 +3,23 @@ import { Posto } from './Posto';
 
 export interface MapProps {
   stations: Posto[];
-  userLocation: { latitude: number; longitude: number };
-  selectedFuelType: string;
+  selectedStation: Posto | null;
   onMarkerPress: (station: Posto | null) => void;
+  userLocation: {
+    latitude: number;
+    longitude: number;
+  };
+  isSearchActive?: boolean;
+  searchRadius?: number;
+  selectedFuelType: string;
+  style?: any;
   onMapPress?: (coordinate: LatLng) => void;
   onStationListScroll?: (station: Posto) => void;
   initialZoom?: number;
-  style?: any;
-  searchRadius: number;
   mapRef?: React.RefObject<any>;
   center?: [number, number];
   zoom?: number;
   allowInteraction?: boolean;
-  selectedStation?: Posto | null;
-  isSearchActive?: boolean;
 }
 
 export default MapProps; 

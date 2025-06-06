@@ -1,20 +1,29 @@
-import React, { useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 import { ActivityIndicator, Dimensions, ScrollView, Text, View } from 'react-native';
+import { useAppContext } from '../../context/AppContext';
 import { Posto } from '../../types/models';
+import FuelTypeSelector from './FuelTypeSelector';
 import PostoCard from './PostoCard';
 
-interface StationListProps {
+type StationListProps = {
   stations: Posto[];
-  userLocation: { latitude: number; longitude: number };
+  userLocation: {
+    latitude: number;
+    longitude: number;
+  };
   selectedFuelType: string;
   selectedStation: Posto | null;
-  onScroll: (event: any) => void;
-  onMeasureCardHeight: (index: number, height: number) => void;
-  scrollViewRef: React.RefObject<ScrollView | null>;
+  onScroll?: (event: any) => void;
+  onMeasureCardHeight?: (index: number, height: number) => void;
+  scrollViewRef?: React.RefObject<ScrollView | null>;
   isLoading?: boolean;
-}
+  onFuelTypeChange?: (fuelType: string) => void;
+  onSelectSort?: (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => void;
+  selectedSort?: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto';
+};
 
-const StationList: React.FC<StationListProps> = React.memo(({
+const StationList: React.FC<StationListProps> = ({
   stations,
   userLocation,
   selectedFuelType,
@@ -23,65 +32,71 @@ const StationList: React.FC<StationListProps> = React.memo(({
   onMeasureCardHeight,
   scrollViewRef,
   isLoading = false,
+  onFuelTypeChange,
+  onSelectSort,
+  selectedSort,
 }) => {
-  const window = Dimensions.get('window');
-  const isPortrait = window.height >= window.width;
+  const { theme } = useAppContext();
+  const dimensions = Dimensions.get('window');
+  const isPortrait = dimensions.height >= dimensions.width;
 
-  const stationItems = useMemo(() => (
-    stations.map((station, index) => (
-      <View
-        key={station.id}
-        className="w-full"
-        onLayout={(event) => onMeasureCardHeight(index, event.nativeEvent.layout.height)}
-      >
-        <PostoCard
-          station={station}
-          userLocation={userLocation}
-          selectedFuelType={selectedFuelType}
-          isSelected={selectedStation?.id === station.id}
-        />
+  if (isLoading) {
+    return (
+      <View style={{ backgroundColor: theme.background }} className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={{ color: theme.textSecondary }} className="mt-4">
+          Loading stations...
+        </Text>
       </View>
-    ))
-  ), [stations, userLocation, selectedFuelType, selectedStation, onMeasureCardHeight]);
-
-  const loadingIndicator = useMemo(() => (
-    <View className="py-8 items-center">
-      <ActivityIndicator size="large" color="#3b82f6" />
-      <Text className="mt-4 text-slate-600 dark:text-slate-400">
-        Loading stations...
-      </Text>
-    </View>
-  ), []);
+    );
+  }
 
   return (
-    <View className="flex-1 bg-white dark:bg-slate-900 rounded-t-3xl">
-      <ScrollView 
+    <View style={{ backgroundColor: theme.background }} className="flex-1">
+      {onFuelTypeChange && onSelectSort && selectedSort && (
+        <FuelTypeSelector
+          selectedFuelType={selectedFuelType}
+          onFuelTypeChange={onFuelTypeChange}
+          selectedSort={selectedSort}
+          onSelectSort={onSelectSort}
+        />
+      )}
+      <ScrollView
         ref={scrollViewRef}
-        className={`${isPortrait ? 'px-2' : 'px-1'} pb-4`}
+        className="flex-1"
+        style={{ backgroundColor: theme.background }}
         onScroll={onScroll}
-        scrollEventThrottle={32}
-        removeClippedSubviews={true}
-        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
       >
-        <View className="w-full">
-          {isLoading && stations.length === 0 ? (
-            loadingIndicator
-          ) : (
-            stationItems
-          )}
-          
-          {/* Loading indicator at the bottom when we have existing stations */}
-          {isLoading && stations.length > 0 && (
-            <View className="py-4 items-center">
-              <ActivityIndicator size="small" color="#3b82f6" />
+        {stations.length === 0 ? (
+          <View className="flex-1 items-center justify-center p-4">
+            <Ionicons name="alert-circle-outline" size={48} color={theme.textSecondary} />
+            <Text style={{ color: theme.textSecondary }} className="mt-4 text-center">
+              No stations found in your area
+            </Text>
+          </View>
+        ) : (
+          stations.map((station, index) => (
+            <View
+              key={station.id}
+              onLayout={(event) => {
+                if (onMeasureCardHeight) {
+                  onMeasureCardHeight(index, event.nativeEvent.layout.height);
+                }
+              }}
+            >
+              <PostoCard
+                station={station}
+                userLocation={userLocation}
+                selectedFuelType={selectedFuelType}
+                isSelected={selectedStation?.id === station.id}
+              />
             </View>
-          )}
-        </View>
+          ))
+        )}
       </ScrollView>
     </View>
   );
-});
-
-StationList.displayName = 'StationList';
+};
 
 export default StationList; 

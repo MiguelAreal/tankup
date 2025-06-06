@@ -1,36 +1,49 @@
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Callout, Circle, Marker } from 'react-native-maps';
+import { useAppContext } from '../../../context/AppContext';
 import { MapProps, Posto } from '../../../types/models';
 import PostoCard from '../PostoCard';
 
-const Map = forwardRef<MapView, MapProps>((props, ref) => {
-  const internalMapRef = useRef<MapView>(null);
-  const mapRef = (ref || internalMapRef) as React.RefObject<MapView>;
+const Map: React.ForwardRefRenderFunction<any, MapProps> = (
+  { 
+    stations, 
+    selectedStation, 
+    onMarkerPress, 
+    userLocation, 
+    isSearchActive,
+    searchRadius,
+    selectedFuelType,
+    style 
+  }, 
+  ref
+) => {
+  const { theme } = useAppContext();
+  const mapRef = useRef<any>(null);
   const [isMapReady, setIsMapReady] = useState(false);
 
   // Debug stations data
-  useEffect(() => {
-    console.log('Stations received:', props.stations);
-    if (props.stations.length > 0) {
-      console.log('First station coordinates:', props.stations[0].localizacao.coordinates);
+  /*useEffect(() => {
+    console.log('Stations received:', stations);
+    if (stations.length > 0) {
+      console.log('First station coordinates:', stations[0].localizacao.coordinates);
     }
-  }, [props.stations]);
+  }, [stations]);*/
 
   // Update map position when userLocation changes
   useEffect(() => {
-    if (mapRef.current && props.userLocation) {
+    if (mapRef.current && userLocation && !isSearchActive) {
       mapRef.current.animateToRegion({
-        latitude: props.userLocation.latitude,
-        longitude: props.userLocation.longitude,
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
       }, 1000);
     }
-  }, [props.userLocation]);
+  }, [userLocation, isSearchActive]);
 
   const handleMarkerPress = useCallback((station: Posto) => {
-    props.onMarkerPress(station);
+    onMarkerPress(station);
     // Animate to the selected station
     if (mapRef.current && station) {
       const [lng, lat] = station.localizacao.coordinates;
@@ -42,58 +55,58 @@ const Map = forwardRef<MapView, MapProps>((props, ref) => {
       }, 500);
 
       // Scroll to the station in the list if the callback is provided
-      if (props.onStationListScroll) {
-        props.onStationListScroll(station);
+      if (onMarkerPress) {
+        onMarkerPress(station);
       }
     }
-  }, [props.onMarkerPress, props.onStationListScroll]);
+  }, [onMarkerPress]);
 
   const handleMapPress = useCallback(() => {
-    props.onMarkerPress(null);
-  }, [props.onMarkerPress]);
+    onMarkerPress(null);
+  }, [onMarkerPress]);
 
   const initialRegion = useMemo(() => {
-    console.log('Setting initial region with user location:', props.userLocation);
+    //console.log('Setting initial region with user location:', userLocation);
     const region = {
-      latitude: props.userLocation.latitude,
-      longitude: props.userLocation.longitude,
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
       latitudeDelta: 0.0422,
       longitudeDelta: 0.0221,
     };
-    console.log('Calculated initial region:', region);
+    //console.log('Calculated initial region:', region);
     return region;
-  }, [props.userLocation.latitude, props.userLocation.longitude]);
+  }, [userLocation.latitude, userLocation.longitude]);
 
   // Only show user location marker if not using showsUserLocation
   const userLocationMarker = null;
 
   const searchRadiusCircle = useMemo(() => (
-    props.searchRadius ? (
+    !isSearchActive && searchRadius ? (
       <Circle
         center={{
-          latitude: props.userLocation.latitude,
-          longitude: props.userLocation.longitude,
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
         }}
-        radius={props.searchRadius * 1000}
-        strokeColor="rgba(59, 130, 246, 0.5)"
-        fillColor="rgba(59, 130, 246, 0.1)"
+        radius={searchRadius * 1000}
+        strokeColor={theme.primary}
         strokeWidth={2}
+        fillColor={`${theme.primary}20`}
       />
     ) : null
-  ), [props.userLocation.latitude, props.userLocation.longitude, props.searchRadius]);
+  ), [userLocation.latitude, userLocation.longitude, searchRadius, isSearchActive, theme.primary]);
 
   const stationMarkers = useMemo(() => {
-    console.log('Rendering markers, isMapReady:', isMapReady);
-    return props.stations.map((station) => {
+    //console.log('Rendering markers, isMapReady:', isMapReady);
+    return stations.map((station) => {
       const [lng, lat] = station.localizacao.coordinates;
-      const isSelected = props.selectedStation?.id === station.id;
-      console.log('Creating marker for station:', {
+      const isSelected = selectedStation?.id === station.id;
+      /*console.log('Creating marker for station:', {
         id: station.id,
         coordinates: [lng, lat],
         latitude: lat,
         longitude: lng,
         isMapReady: isMapReady
-      });
+      });*/
       return (
         <Marker
           key={station.id}
@@ -112,8 +125,8 @@ const Map = forwardRef<MapView, MapProps>((props, ref) => {
             <View style={styles.calloutContainer}>
               <PostoCard
                 station={station}
-                userLocation={props.userLocation}
-                selectedFuelType={props.selectedFuelType}
+                userLocation={userLocation}
+                selectedFuelType={selectedFuelType}
                 isSelected={isSelected}
               />
             </View>
@@ -121,25 +134,30 @@ const Map = forwardRef<MapView, MapProps>((props, ref) => {
         </Marker>
       );
     });
-  }, [props.stations, props.selectedFuelType, props.selectedStation, handleMarkerPress, props.userLocation, isMapReady]);
+  }, [stations, selectedFuelType, selectedStation, handleMarkerPress, userLocation, isMapReady]);
 
   return (
-    <View style={styles.container}>
+    <View style={[{ flex: 1 }, style]}>
       <MapView
         ref={mapRef}
-        style={styles.map}
-        initialRegion={initialRegion}
-        showsUserLocation
-        showsMyLocationButton
+        style={{ flex: 1 }}
+        initialRegion={{
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        }}
+        showsUserLocation={!isSearchActive}
+        showsMyLocationButton={!isSearchActive}
         showsCompass
         showsScale
-        scrollEnabled={props.allowInteraction !== false}
-        zoomEnabled={props.allowInteraction !== false}
-        rotateEnabled={props.allowInteraction !== false}
+        scrollEnabled={true}
+        zoomEnabled={true}
+        rotateEnabled={true}
         onPress={handleMapPress}
         moveOnMarkerPress={false}
         onMapReady={() => {
-          console.log('Map is ready, setting isMapReady to true');
+          //console.log('Map is ready, setting isMapReady to true');
           setIsMapReady(true);
         }}
       >
@@ -148,7 +166,7 @@ const Map = forwardRef<MapView, MapProps>((props, ref) => {
       </MapView>
     </View>
   );
-});
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -198,4 +216,4 @@ const styles = StyleSheet.create({
 
 Map.displayName = 'Map';
 
-export default Map; 
+export default React.forwardRef(Map); 
