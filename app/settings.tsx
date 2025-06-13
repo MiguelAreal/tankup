@@ -1,13 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, SafeAreaView, ScrollView, StatusBar, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
+import { Linking, Platform, SafeAreaView, ScrollView, StatusBar, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Strings } from '../types/strings';
 import fuelTypesData from './assets/fuelTypes.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
+import { useAppContext } from './context/AppContext';
+
+interface FuelType {
+  id: string;
+  icon: string;
+}
 
 // Map provider options
 const mapProviders = [
@@ -28,14 +32,12 @@ export default function SettingsScreen() {
     setSearchRadius,
     mapProvider,
     setMapProvider,
-    isLoading: contextLoading,
     language,
     setLanguage,
     selectedFuelTypes,
     setSelectedFuelTypes
   } = useAppContext();
   
-  const [isLoading, setIsLoading] = useState(true);
   const [isMapDropdownOpen, setIsMapDropdownOpen] = useState(false);
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
@@ -44,15 +46,12 @@ export default function SettingsScreen() {
 
   // Initialize dropdowns based on current values
   useEffect(() => {
-    if (!contextLoading) {
-      setIsLoading(false);
-      // Open the dropdowns that match the current values
-      setIsMapDropdownOpen(true);
-      setIsNavDropdownOpen(true);
-      setIsLangDropdownOpen(true);
-      setIsRadiusDropdownOpen(true);
-    }
-  }, [contextLoading]);
+    // Open the dropdowns that match the current values
+    setIsMapDropdownOpen(true);
+    setIsNavDropdownOpen(true);
+    setIsLangDropdownOpen(true);
+    setIsRadiusDropdownOpen(true);
+  }, []);
 
   // Apply dark mode class to html element
   useEffect(() => {
@@ -67,25 +66,38 @@ export default function SettingsScreen() {
   }, [darkMode]);
 
   const handleDarkModeToggle = async (value: boolean) => {
-    setDarkMode(value);
-    try {
-      await AsyncStorage.setItem('darkMode', String(value));
-    } catch (error) {
-      // Silent error handling
-    }
+    await setDarkMode(value);
   };
 
-  const handleNavigationAppChange = (app: 'google_maps' | 'waze' | 'apple_maps') => {
-    setPreferredNavigationApp(app);
+  const handleNavigationAppChange = async (app: 'google_maps' | 'waze' | 'apple_maps') => {
+    await setPreferredNavigationApp(app);
   };
 
-  const handleRadiusChange = (radius: number) => {
-    setSearchRadius(radius);
+  const handleRadiusChange = async (radius: number) => {
+    await setSearchRadius(radius);
   };
 
-  const handleMapProviderChange = (provider: 'openstreetmap' | 'cartodb_light' | 'cartodb_dark') => {
-    setMapProvider(provider);
+  const handleMapProviderChange = async (provider: 'openstreetmap' | 'cartodb_light' | 'cartodb_dark') => {
+    await setMapProvider(provider);
     setIsMapDropdownOpen(false);
+  };
+
+  const handleLanguageChange = async (lang: 'en' | 'pt') => {
+    await setLanguage(lang);
+    setIsLangDropdownOpen(false);
+  };
+
+  const handleFuelTypeToggle = async (fuelType: string) => {
+    const isSelected = selectedFuelTypes.includes(fuelType);
+    if (isSelected) {
+      if (selectedFuelTypes.length > 1) {
+        await setSelectedFuelTypes(selectedFuelTypes.filter((type: string) => type !== fuelType));
+      }
+    } else {
+      if (selectedFuelTypes.length < 6) {
+        await setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
+      }
+    }
   };
 
   const getCurrentMapProviderName = () => {
@@ -94,19 +106,6 @@ export default function SettingsScreen() {
   
   const handleBackPress = () => {
     router.replace('/');
-  };
-
-  const handleFuelTypeToggle = (fuelType: string) => {
-    const isSelected = selectedFuelTypes.includes(fuelType);
-    if (isSelected) {
-      if (selectedFuelTypes.length > 1) {
-        setSelectedFuelTypes(selectedFuelTypes.filter(type => type !== fuelType));
-      }
-    } else {
-      if (selectedFuelTypes.length < 6) {
-        setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
-      }
-    }
   };
 
   const getCurrentNavAppName = () => {
@@ -136,27 +135,6 @@ export default function SettingsScreen() {
   const getCurrentRadiusText = () => {
     return `${searchRadius} km`;
   };
-
-  if (isLoading || contextLoading) {
-    return (
-      <>
-        <StatusBar 
-          barStyle={darkMode ? 'light-content' : 'dark-content'}
-          translucent={true}
-          backgroundColor="transparent"
-        />
-        <SafeAreaView 
-          className="flex-1 justify-center items-center"
-          style={{ 
-            paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-            backgroundColor: theme.background
-          }}
-        >
-          <ActivityIndicator size="large" color={theme.primary} />
-        </SafeAreaView>
-      </>
-    );
-  }
   
   return (
     <>
@@ -265,7 +243,7 @@ export default function SettingsScreen() {
                   />
                 </View>
               </TouchableOpacity>
-
+              
               {isNavDropdownOpen && (
                 <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
                   <TouchableOpacity 
@@ -312,31 +290,33 @@ export default function SettingsScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    className={`p-4 rounded-lg ${
-                      preferredNavigationApp === 'apple_maps' 
-                        ? 'bg-blue-50 dark:bg-blue-900/30' 
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity 
+                      className={`p-4 rounded-lg ${
+                        preferredNavigationApp === 'apple_maps' 
+                          ? 'bg-blue-50 dark:bg-blue-900/30' 
                         : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                    }`}
-                    onPress={() => {
-                      handleNavigationAppChange('apple_maps');
-                      setIsNavDropdownOpen(false);
-                    }}
-                  >
-                    <Text 
-                      className={`${
-                        preferredNavigationApp === 'apple_maps'
-                          ? 'text-blue-600 dark:text-blue-400 font-medium'
-                          : 'text-slate-600 dark:text-slate-400'
                       }`}
+                      onPress={() => {
+                        handleNavigationAppChange('apple_maps');
+                        setIsNavDropdownOpen(false);
+                      }}
                     >
-                      Apple Maps
-                    </Text>
-                  </TouchableOpacity>
+                      <Text 
+                        className={`${
+                          preferredNavigationApp === 'apple_maps'
+                            ? 'text-blue-600 dark:text-blue-400 font-medium'
+                            : 'text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        Apple Maps
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </View>
-            
+
             {/* Search Radius */}
             <View style={{ 
               backgroundColor: theme.card,
@@ -381,7 +361,7 @@ export default function SettingsScreen() {
               {isRadiusDropdownOpen && (
                 <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
                   <View className="flex-row justify-between mt-4 gap-2">
-                    {[5, 10, 15].map((radius) => (
+                    {[5, 10, 15, 20].map((radius) => (
                       <TouchableOpacity
                         key={radius}
                         className={`flex-1 py-2 rounded-lg ${
@@ -452,7 +432,7 @@ export default function SettingsScreen() {
                     />
                   </View>
                 </TouchableOpacity>
-
+                
                 {isMapDropdownOpen && (
                   <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
                     {mapProviders.map((provider) => (
@@ -463,7 +443,10 @@ export default function SettingsScreen() {
                             ? 'bg-blue-50 dark:bg-blue-900/30' 
                             : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
                         }`}
-                        onPress={() => handleMapProviderChange(provider.id as any)}
+                        onPress={() => {
+                          handleMapProviderChange(provider.id as any);
+                          setIsMapDropdownOpen(false);
+                        }}
                       >
                         <Text 
                           className={`${
@@ -521,7 +504,7 @@ export default function SettingsScreen() {
                   />
                 </View>
               </TouchableOpacity>
-
+              
               {isLangDropdownOpen && (
                 <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
                   <TouchableOpacity 
@@ -531,7 +514,7 @@ export default function SettingsScreen() {
                         : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
                     }`}
                     onPress={() => {
-                      setLanguage('pt');
+                      handleLanguageChange('pt');
                       setIsLangDropdownOpen(false);
                     }}
                   >
@@ -553,7 +536,7 @@ export default function SettingsScreen() {
                         : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
                     }`}
                     onPress={() => {
-                      setLanguage('en');
+                      handleLanguageChange('en');
                       setIsLangDropdownOpen(false);
                     }}
                   >
@@ -604,7 +587,7 @@ export default function SettingsScreen() {
               </Text>
 
               <View className="flex-row flex-wrap">
-                {fuelTypesData.types.map((type) => (
+                {fuelTypesData.types.map((type: FuelType) => (
                   <TouchableOpacity
                     key={type.id}
                     className={`mr-2 mb-2 p-2 px-4 rounded-lg ${

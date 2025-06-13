@@ -14,6 +14,7 @@ import Map from './components/Map/Map';
 import ResponsiveAdBanner from './components/ResponsiveAdBanner';
 import StationList from './components/StationList';
 import StatusMessage from './components/StatusMessage';
+import { useSearch } from './context/SearchContext';
 import { useInterstitialAd } from './hooks/useInterstitialAd';
 import { fetchNearbyStations, fetchStationsByLocation } from './utils/api';
 
@@ -65,7 +66,6 @@ const HomeScreen = () => {
   const mapHeight = useRef(new Animated.Value(0.40)).current;
   const currentMapHeight = useRef(0.40);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const isInSearchMode = useRef(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const mapRef = useRef<any>(null);
   const router = useRouter();
@@ -85,12 +85,11 @@ const HomeScreen = () => {
     searchRadius, 
     language, 
     selectedFuelTypes, 
-    searchState, 
-    setSearchState, 
-    clearSearch: clearSearchContext,
     preferredNavigationApp,
     theme
   } = useAppContext();
+
+  const { searchState, clearSearch: clearSearchContext, isSearchActive, setSearchState } = useSearch();
 
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -101,7 +100,6 @@ const HomeScreen = () => {
   const [filteredStations, setFilteredStations] = useState<Posto[]>([]);
   const [selectedFuelType, setSelectedFuelType] = useState(selectedFuelTypes[0] || 'Gasóleo simples');
   const [selectedStation, setSelectedStation] = useState<Posto | null>(null);
-  const [isSearchActive, setIsSearchActive] = useState(false);
   const [currentSort, setCurrentSort] = useState<'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto'>('mais_barato');
   const lastFetchTime = useRef<number>(0);
   const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
@@ -117,10 +115,15 @@ const HomeScreen = () => {
     return !!searchState || params.searchType === 'location' || isSearchActive;
   }, [searchState, params.searchType, isSearchActive]);
 
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const mapReadyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Memoized fetch and filter function
   const fetchAndFilterStations = useCallback(async (location: Location.LocationObjectCoords, forceFetch: boolean = false, fuelType?: string) => {
-    // HARD BLOCK: nunca execute em modo de pesquisa
-    if (inSearchMode) {
+    // HARD BLOCK: never execute in search mode
+    if (isSearchActive) {
       console.log('❌ [HARD BLOCK] fetchAndFilterStations - Blocked in search mode');
       return;
     }
@@ -151,8 +154,8 @@ const HomeScreen = () => {
         currentSort
       );
       
-      // Double check ainda estamos fora do modo de pesquisa
-      if (!inSearchMode) {
+      // Double check we're still not in search mode
+      if (!isSearchActive) {
         console.log('✅ fetchAndFilterStations - Updating data');
         setAllStations(data);
         setFilteredStations(data);
@@ -168,7 +171,7 @@ const HomeScreen = () => {
       setIsFetchingMore(false);
       setIsLoading(false);
     }
-  }, [searchRadius, currentSort, isFetchingMore, selectedFuelType, inSearchMode]);
+  }, [searchRadius, currentSort, isFetchingMore, selectedFuelType, isSearchActive]);
 
   // Memoized handlers
   const handleFuelTypeChange = useCallback((fuelType: string) => {
@@ -188,8 +191,8 @@ const HomeScreen = () => {
   }, [location, showAd, inSearchMode, fetchAndFilterStations]);
 
   const handleSortChange = useCallback((sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => {
-    if (inSearchMode) {
-      // Em modo de pesquisa, use a API de location
+    if (isSearchActive) {
+      // In search mode, use the location API
       if (searchState && 'distrito' in searchState && 'municipio' in searchState && 'fuelType' in searchState) {
         const updatedSearchState = {
           ...searchState,
@@ -214,7 +217,7 @@ const HomeScreen = () => {
       return;
     }
 
-    // Modo normal (nearby)
+    // Normal mode (nearby)
     if (location) {
       setIsLoading(true);
       setFilteredStations([]);
@@ -234,7 +237,7 @@ const HomeScreen = () => {
         setIsLoading(false);
       });
     }
-  }, [location, searchRadius, selectedFuelType, inSearchMode, searchState, setSearchState]);
+  }, [location, searchRadius, selectedFuelType, isSearchActive, searchState, setSearchState]);
 
   const handleMarkerPress = useCallback((station: Posto | null) => {
     setSelectedStation(station);
@@ -330,17 +333,14 @@ const HomeScreen = () => {
     cardHeights.current[index] = height;
   }, []);
 
-  const clearSearch = useCallback(async () => {
-    if (inSearchMode) {
+  const handleClearSearch = useCallback(async () => {
+    if (isSearchActive) {
       console.log('❌ [BLOCK] clearSearch - Cleaning up search mode first');
-      // Primeiro limpe o modo de pesquisa
       clearSearchContext();
-      setIsSearchActive(false);
       setSelectedStation(null);
-      setSearchState(null);
       setAllStations([]);
       setFilteredStations([]);
-      // Aguarde o próximo ciclo para garantir que saímos do modo de pesquisa
+      // Wait for the next cycle to ensure we're out of search mode
       return;
     }
 
@@ -356,7 +356,7 @@ const HomeScreen = () => {
             distanceInterval: 50,
           },
           (newLocation) => {
-            if (!inSearchMode) {
+            if (!isSearchActive) {
               setLocation(newLocation);
             }
           }
@@ -372,7 +372,7 @@ const HomeScreen = () => {
           currentSort
         );
 
-        if (!inSearchMode) {
+        if (!isSearchActive) {
           setAllStations(data);
           setFilteredStations(data);
           
@@ -391,7 +391,7 @@ const HomeScreen = () => {
     } finally {
       setIsFetchingMore(false);
     }
-  }, [location, searchRadius, selectedFuelType, currentSort, clearSearchContext, inSearchMode, t]);
+  }, [location, searchRadius, selectedFuelType, currentSort, clearSearchContext, isSearchActive, t]);
 
   // Memoized animation function
   const animateMapHeight = useCallback((toValue: number) => {
@@ -407,48 +407,50 @@ const HomeScreen = () => {
     cardHeights.current[index] = height;
   };
 
-  // Initial setup
+  // Effect to handle search state changes
+  useEffect(() => {
+    if (searchState) {
+      console.log('✅ Search state updated, updating stations');
+      setAllStations(searchState.results);
+      setFilteredStations(searchState.results);
+      setSelectedFuelType(searchState.fuelType);
+      setCurrentSort(searchState.sortBy);
+
+      // Clean up location subscription when entering search mode
+      if (locationSubscription.current) {
+        console.log('🔄 Cleaning up location subscription for search mode');
+        locationSubscription.current.remove();
+        locationSubscription.current = null;
+      }
+    }
+  }, [searchState]);
+
+  // Effect to handle location updates
   useEffect(() => {
     const initialize = async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        setHasLocationPermission(status === 'granted');
+        setIsInitialLoading(true);
         
-        if (status !== 'granted') {
+        // Request location permission and get initial location in parallel
+        const [locationPermission, initialLocation] = await Promise.all([
+          Location.requestForegroundPermissionsAsync(),
+          Location.getCurrentPositionAsync({})
+        ]);
+        
+        setHasLocationPermission(locationPermission.status === 'granted');
+        setLocation(initialLocation);
+        
+        if (locationPermission.status !== 'granted') {
           setErrorMsg(t('error.locationDenied'));
           setAllStations([]);
+          setIsInitialLoading(false);
+          setIsDataLoaded(true);
           return;
         }
 
-        setIsFetchingMore(true);
-        const initialLocation = await Location.getCurrentPositionAsync({});
-        setLocation(initialLocation);
-
-        // Fetch initial stations
-        const data = await fetchNearbyStations<Posto[]>(
-          initialLocation.coords.latitude,
-          initialLocation.coords.longitude,
-          searchRadius * 1000,
-          selectedFuelType,
-          currentSort
-        );
-        
-        setAllStations(data);
-        setFilteredStations(data);
-        lastFetchTime.current = Date.now(); // Set the initial fetch time
-
-        // Center map on user location
-        if (mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude: initialLocation.coords.latitude,
-            longitude: initialLocation.coords.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          }, 1000);
-        }
-
-        // Only start location subscription if not in search mode
-        if (!isSearchActive && !searchState && params.searchType !== 'location') {
+        // Only fetch initial stations if not in search mode
+        if (!isSearchActive) {
+          // Start location subscription immediately
           locationSubscription.current = await Location.watchPositionAsync(
             {
               accuracy: Location.Accuracy.High,
@@ -456,14 +458,40 @@ const HomeScreen = () => {
               distanceInterval: 50,
             },
             (newLocation) => {
-              // Only update location if we're not in search mode
-              if (!isSearchActive && !searchState && params.searchType !== 'location') {
+              if (!isSearchActive) {
                 setLocation(newLocation);
               }
             }
           );
+
+          // Fetch stations in parallel with other operations
+          const data = await fetchNearbyStations<Posto[]>(
+            initialLocation.coords.latitude,
+            initialLocation.coords.longitude,
+            searchRadius * 1000,
+            selectedFuelType,
+            currentSort
+          );
+          
+          setAllStations(data);
+          setFilteredStations(data);
+          lastFetchTime.current = Date.now();
+          setIsDataLoaded(true);
+
+          // Center map on user location
+          if (mapRef.current) {
+            mapRef.current.animateToRegion({
+              latitude: initialLocation.coords.latitude,
+              longitude: initialLocation.coords.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }, 1000);
+          }
+        } else {
+          setIsDataLoaded(true);
         }
       } catch (error) {
+        console.error('Error initializing:', error);
         setErrorMsg(t('error.locationError'));
         setAllStations([]);
         setLocation({
@@ -478,8 +506,10 @@ const HomeScreen = () => {
           },
           timestamp: Date.now()
         });
+        setIsDataLoaded(true);
+      } finally {
+        setIsInitialLoading(false);
       }
-      setIsFetchingMore(false);
     };
 
     initialize();
@@ -490,208 +520,28 @@ const HomeScreen = () => {
         locationSubscription.current = null;
       }
     };
+  }, [isSearchActive]);
+
+  // Add map ready handler with timeout
+  const handleMapReady = useCallback(() => {
+    console.log('Map is ready');
+    setIsMapReady(true);
   }, []);
 
-  // Effect to fetch stations when location changes
+  // Effect to handle map ready timeout
   useEffect(() => {
-    // HARD BLOCK: nunca execute em modo de pesquisa
-    if (inSearchMode) {
-      console.log('❌ [HARD BLOCK] Location effect - Blocked in search mode');
-      return;
-    }
+    // Set a timeout to force map ready after 5 seconds
+    mapReadyTimeout.current = setTimeout(() => {
+      console.log('Map ready timeout reached');
+      setIsMapReady(true);
+    }, 5000);
 
-    console.log('🔍 Location change effect triggered with states:', {
-      hasLocation: !!location,
-      inSearchMode,
-      isFetchingMore,
-      lastFetchTime: lastFetchTime.current
-    });
-
-    if (!location || isFetchingMore || lastFetchTime.current === 0) {
-      console.log('❌ Location change effect - Early return:', {
-        noLocation: !location,
-        fetching: isFetchingMore,
-        initialFetch: lastFetchTime.current === 0
-      });
-      return;
-    }
-
-    const fetchStations = async () => {
-      try {
-        const now = Date.now();
-        if (now - lastFetchTime.current < POLLING_INTERVAL || !locationSubscription.current) {
-          console.log('❌ Fetch stations - Prevented due to:', {
-            pollingInterval: now - lastFetchTime.current < POLLING_INTERVAL,
-            noLocationSubscription: !locationSubscription.current
-          });
-          return;
-        }
-
-        console.log('✅ Fetching nearby stations...');
-        await fetchAndFilterStations(location.coords, false);
-      } catch (error) {
-        console.log('❌ Error fetching nearby stations:', error);
-        setErrorMsg(t('error.noInternet'));
-      }
-    };
-
-    fetchStations();
-  }, [location, searchRadius, selectedFuelType, currentSort, isFetchingMore, inSearchMode, t, fetchAndFilterStations]);
-
-  // Effect to handle search state changes
-  useEffect(() => {
-    console.log('🔍 Search state change effect triggered:', {
-      hasSearchState: !!searchState,
-      isSearchActive,
-      searchType: params.searchType,
-      hasLocationSubscription: !!locationSubscription.current
-    });
-
-    const cleanupLocationSubscription = () => {
-      console.log('🔄 Cleaning up location subscription');
-      if (locationSubscription.current) {
-        try {
-          locationSubscription.current.remove();
-        } catch (error) {
-          console.log('❌ Error removing location subscription:', error);
-        }
-        locationSubscription.current = null;
-      }
-    };
-
-    const handleSearchStateChange = async () => {
-      // First, determine if we should be in search mode
-      const shouldBeInSearchMode = searchState || params.searchType === 'location' || isSearchActive;
-      
-      // SEMPRE limpe o subscription ANTES de qualquer mudança de estado
-      if (shouldBeInSearchMode) {
-        // Cleanup PRIMEIRO, antes de qualquer coisa
-        cleanupLocationSubscription();
-        
-        // Agora sim podemos mudar os estados
-        console.log('✅ Entering search mode');
-        setIsSearchActive(true);
-        
-        if (searchState) {
-          console.log('✅ Updating with search state results');
-          setAllStations(searchState.results);
-          setFilteredStations(searchState.results);
-          setSelectedFuelType(searchState.fuelType);
-          
-          if (searchState.results.length > 0 && mapRef.current) {
-            const [lng, lat] = searchState.results[0].localizacao.coordinates;
-            try {
-              const map = mapRef.current;
-              if (map && typeof map.animateToRegion === 'function') {
-                map.animateToRegion({
-                  latitude: lat,
-                  longitude: lng,
-                  latitudeDelta: 0.1,
-                  longitudeDelta: 0.1,
-                }, 1000);
-              }
-            } catch (error) {
-              console.log('❌ Error animating map:', error);
-            }
-          }
-        }
-      } else {
-        // Saindo do modo de pesquisa
-        console.log('✅ Exiting search mode, restarting location updates');
-        try {
-          const subscription = await Location.watchPositionAsync(
-            {
-              accuracy: Location.Accuracy.High,
-              timeInterval: 10000,
-              distanceInterval: 50,
-            },
-            (newLocation) => {
-              // Verificação extra de modo de pesquisa
-              const currentlyInSearchMode = !!searchState || params.searchType === 'location' || isSearchActive;
-              if (!currentlyInSearchMode) {
-                console.log('✅ Location update received in non-search mode');
-                setLocation(newLocation);
-              } else {
-                console.log('❌ Location update ignored - in search mode');
-                // Se detectar que estamos em modo de pesquisa, limpa o subscription
-                cleanupLocationSubscription();
-              }
-            }
-          );
-          locationSubscription.current = subscription;
-          console.log('✅ Location subscription restarted');
-        } catch (error) {
-          console.log('❌ Error starting location subscription:', error);
-        }
-      }
-    };
-
-    handleSearchStateChange();
-
-    // Cleanup on unmount
     return () => {
-      cleanupLocationSubscription();
-    };
-  }, [searchState, isSearchActive, params.searchType]);
-
-  // Update the search results handling effect
-  useEffect(() => {
-    const handleSearchParams = async () => {
-      if (params.searchType === 'location' && !searchState) {
-        console.log('✅ Starting location-based search');
-        isInSearchMode.current = true;
-        // First, stop any ongoing location updates
-        if (locationSubscription.current) {
-          console.log('🔄 Cleaning up location subscription for search');
-          locationSubscription.current.remove();
-          locationSubscription.current = null;
-        }
-
-        // Clear current stations and set search mode
-        setAllStations([]);
-        setFilteredStations([]);
-        setIsSearchActive(true);
-        setSelectedStation(null);
-        setIsFetchingMore(true);
-        lastFetchTime.current = Date.now(); // Update last fetch time to prevent nearby fetches
-        
-        try {
-          console.log('✅ Fetching stations by location');
-          const data = await fetchStationsByLocation({
-            distrito: params.distrito as string,
-            municipio: params.municipio as string,
-            fuelType: params.fuelType as string || selectedFuelType,
-            sortBy: (params.sortBy as 'mais_caro' | 'mais_barato') || 'mais_barato'
-          });
-          
-          // Only update if we're still in search mode
-          if (isSearchActive) {
-            console.log('✅ Updating with location search results');
-            setAllStations(data);
-            setFilteredStations(data);
-            setSearchState({
-              results: data,
-              searchType: 'location',
-              distrito: params.distrito as string,
-              municipio: params.municipio as string,
-              fuelType: params.fuelType as string || selectedFuelType,
-              sortBy: (params.sortBy as 'mais_caro' | 'mais_barato') || 'mais_barato'
-            });
-
-          } else {
-            console.log('❌ Search results update skipped - no longer in search mode');
-          }
-        } catch (error) {
-          console.log('❌ Error fetching stations by location:', error);
-          setErrorMsg(t('error.noInternet'));
-        } finally {
-          setIsFetchingMore(false);
-        }
+      if (mapReadyTimeout.current) {
+        clearTimeout(mapReadyTimeout.current);
       }
     };
-
-    handleSearchParams();
-  }, [params.searchType, params.distrito, params.municipio, params.fuelType, params.sortBy, isSearchActive, selectedFuelType, setSearchState, searchState, t]);
+  }, []);
 
   // Apply dark mode class to html element
   useEffect(() => {
@@ -761,6 +611,7 @@ const HomeScreen = () => {
       searchRadius={isSearchActive ? 0 : searchRadius}
       selectedFuelType={selectedFuelType}
       style={dimensions.isPortrait ? undefined : { flex: 1 }}
+      onMapReady={handleMapReady}
     />
   ), [
     filteredStations,
@@ -770,7 +621,8 @@ const HomeScreen = () => {
     isSearchActive,
     searchRadius,
     selectedFuelType,
-    dimensions.isPortrait
+    dimensions.isPortrait,
+    handleMapReady
   ]);
 
   // Memoize the station list component
@@ -833,8 +685,9 @@ const HomeScreen = () => {
     </View>
   ), [mapComponent, stationListComponent]);
 
-  // Render loading screen
-  if (isFetchingMore && !allStations.length) {
+  // Update loading screen to check both map and data
+  if (isInitialLoading || (!isMapReady && !isSearchActive && !isDataLoaded)) {
+    console.log('Loading state:', { isInitialLoading, isMapReady, isDataLoaded, isSearchActive });
     return (
       <>
         <StatusBar 
@@ -930,11 +783,11 @@ const HomeScreen = () => {
         {/* Header */}
         <MemoizedHeader />
 
-        {/* Search Header (only shown when in search mode and searchState exists) */}
+        {/* Search Header (only shown when in search mode) */}
         {isSearchActive && searchState && (
           <SearchHeader
             searchState={searchState}
-            onClearSearch={clearSearch}
+            onClearSearch={handleClearSearch}
           />
         )}
 

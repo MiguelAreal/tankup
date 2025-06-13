@@ -9,6 +9,7 @@ import fuelTypesData from './assets/fuelTypes.json';
 import locationsData from './assets/locations.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
+import { useSearch } from './context/SearchContext';
 import { fetchStationsByLocation } from './utils/api';
 
 type District = {
@@ -22,7 +23,8 @@ type Screen = 'districts' | 'cities';
 export default function SearchScreen() {
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const router = useRouter();
-  const { language, selectedFuelTypes, setSearchState, darkMode, theme } = useAppContext();
+  const { language, selectedFuelTypes, darkMode, theme } = useAppContext();
+  const { setSearchState } = useSearch();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -144,7 +146,7 @@ export default function SearchScreen() {
         sortBy: selectedSort
       });
       
-      // Store search results in memory using AppContext
+      // Store search results in memory using SearchContext
       setSearchState({
         results,
         searchType: 'location',
@@ -154,17 +156,8 @@ export default function SearchScreen() {
         sortBy: selectedSort
       });
       
-      // Navigate back to main page with search parameters
-      router.replace({
-        pathname: '/',
-        params: {
-          searchType: 'location',
-          distrito: selectedDistrict?.name,
-          municipio: selectedCity || undefined,
-          fuelType: selectedFuelType,
-          sortBy: selectedSort
-        }
-      });
+      // Navigate back to main page
+      router.replace('/');
     } catch (err) {
       setError(language === 'en' ? 'Error searching for stations' : 'Erro ao pesquisar postos');
     } finally {

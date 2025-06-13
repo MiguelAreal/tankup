@@ -1,23 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import MapView, { Callout, Circle, Marker } from 'react-native-maps';
+import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useAppContext } from '../../../context/AppContext';
-import { MapProps, Posto } from '../../../types/models';
+import { Posto } from '../../../types/models/Posto';
 import PostoCard from '../PostoCard';
+import { MapProps } from './Map.types';
 
-const Map: React.ForwardRefRenderFunction<any, MapProps> = (
-  { 
-    stations, 
-    selectedStation, 
-    onMarkerPress, 
-    userLocation, 
-    isSearchActive,
-    searchRadius,
-    selectedFuelType,
-    style 
-  }, 
-  ref
-) => {
+const Map = forwardRef<any, MapProps>(({
+  stations,
+  selectedStation,
+  onMarkerPress,
+  userLocation,
+  isSearchActive,
+  searchRadius = 0,
+  selectedFuelType,
+  style,
+  onMapReady
+}, ref) => {
   const { theme } = useAppContext();
   const mapRef = useRef<any>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -136,11 +135,21 @@ const Map: React.ForwardRefRenderFunction<any, MapProps> = (
     });
   }, [stations, selectedFuelType, selectedStation, handleMarkerPress, userLocation, isMapReady]);
 
+  // Handle map ready
+  const handleMapReady = useCallback(() => {
+    console.log('Map component ready');
+    setIsMapReady(true);
+    if (onMapReady) {
+      onMapReady();
+    }
+  }, [onMapReady]);
+
   return (
-    <View style={[{ flex: 1 }, style]}>
+    <View style={[styles.container, style]}>
       <MapView
         ref={mapRef}
-        style={{ flex: 1 }}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
         initialRegion={{
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
@@ -156,17 +165,28 @@ const Map: React.ForwardRefRenderFunction<any, MapProps> = (
         rotateEnabled={true}
         onPress={handleMapPress}
         moveOnMarkerPress={false}
-        onMapReady={() => {
-          //console.log('Map is ready, setting isMapReady to true');
-          setIsMapReady(true);
-        }}
+        onMapReady={handleMapReady}
+        loadingEnabled={true}
+        loadingIndicatorColor={theme.primary}
+        loadingBackgroundColor={theme.background}
       >
         {stationMarkers}
-        {searchRadiusCircle}
+        {!isSearchActive && (
+          <Circle
+            center={{
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+            }}
+            radius={searchRadius * 1000}
+            strokeColor={theme.primary}
+            strokeWidth={2}
+            fillColor={`${theme.primary}20`}
+          />
+        )}
       </MapView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -216,4 +236,4 @@ const styles = StyleSheet.create({
 
 Map.displayName = 'Map';
 
-export default React.forwardRef(Map); 
+export default Map; 

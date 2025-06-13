@@ -5,10 +5,11 @@ import { Text, TouchableOpacity, View } from 'react-native';
 
 const Header: React.FC = () => {
   const router = useRouter();
+
   return (
-    <View className={`px-4 py-3 flex-row justify-between items-centershadow-sm`}>
+    <View className="px-4 py-3 flex-row justify-between items-center shadow-sm bg-white">
       <View className="flex-row items-center">
-        <Text className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+        <Text className="text-2xl font-bold text-blue-600">
           TankUp
         </Text>
         <Ionicons name="car" size={24} color="#2563eb" style={{ marginLeft: 8 }} />
