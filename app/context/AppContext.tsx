@@ -2,6 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
+// Default fuel types
+const DEFAULT_FUEL_TYPES = [
+  'Gasóleo simples',
+  'Gasolina simples 95',
+  'Gasolina 98',
+  'GPL Auto',
+  'Biodiesel B15',
+  'Gasóleo especial'
+];
+
 type AppContextType = {
   darkMode: boolean;
   setDarkMode: (darkMode: boolean) => Promise<void>;
@@ -43,7 +53,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [darkMode, setDarkModeState] = useState(systemColorScheme === 'dark');
   const [searchRadius, setSearchRadiusState] = useState(10);
   const [language, setLanguageState] = useState<'en' | 'pt'>('pt');
-  const [selectedFuelTypes, setSelectedFuelTypesState] = useState<string[]>(['gas95', 'gas98', 'diesel']);
+  const [selectedFuelTypes, setSelectedFuelTypesState] = useState<string[]>(DEFAULT_FUEL_TYPES);
   const [preferredNavigationApp, setPreferredNavigationAppState] = useState<'google_maps' | 'waze' | 'apple_maps'>('google_maps');
   const [mapProvider, setMapProviderState] = useState<'openstreetmap' | 'cartodb_light' | 'cartodb_dark'>('openstreetmap');
 
@@ -61,7 +71,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (savedDarkMode !== null) setDarkModeState(savedDarkMode === 'true');
         if (savedSearchRadius !== null) setSearchRadiusState(Number(savedSearchRadius));
         if (savedLanguage !== null) setLanguageState(savedLanguage as 'en' | 'pt');
-        if (savedFuelTypes !== null) setSelectedFuelTypesState(JSON.parse(savedFuelTypes));
+        if (savedFuelTypes !== null) {
+          const parsedTypes = JSON.parse(savedFuelTypes);
+          // Ensure we have at least one fuel type selected
+          if (parsedTypes.length > 0) {
+            setSelectedFuelTypesState(parsedTypes);
+          }
+        }
         if (savedNavApp !== null) setPreferredNavigationAppState(savedNavApp as 'google_maps' | 'waze' | 'apple_maps');
         if (savedMapProvider !== null) setMapProviderState(savedMapProvider as 'openstreetmap' | 'cartodb_light' | 'cartodb_dark');
       } catch (error) {
@@ -100,6 +116,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const setSelectedFuelTypes = async (value: string[]) => {
+    // Ensure we always have at least one fuel type selected
+    if (value.length === 0) {
+      value = [DEFAULT_FUEL_TYPES[0]];
+    }
     setSelectedFuelTypesState(value);
     try {
       await AsyncStorage.setItem('selectedFuelTypes', JSON.stringify(value));

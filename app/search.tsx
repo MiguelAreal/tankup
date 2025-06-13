@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../context/AppContext';
 import { Strings } from '../types/strings';
@@ -39,6 +39,20 @@ export default function SearchScreen() {
   const [filteredDistricts, setFilteredDistricts] = useState<District[]>(locationsData.districts);
   const [currentScreen, setCurrentScreen] = useState<Screen>('districts');
   const [filteredCities, setFilteredCities] = useState<{ district: District; city: string }[]>([]);
+
+  // Get only the fuel types that are selected in settings
+  const availableFuelTypes = useMemo(() => {
+    return fuelTypesData.types.filter(type => 
+      selectedFuelTypes.includes(type.id)
+    );
+  }, [selectedFuelTypes]);
+
+  // Update selected fuel type when selectedFuelTypes changes
+  useEffect(() => {
+    if (!selectedFuelTypes.includes(selectedFuelType)) {
+      setSelectedFuelType(selectedFuelTypes[0] || '');
+    }
+  }, [selectedFuelTypes]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -183,32 +197,32 @@ export default function SearchScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView className="max-h-96">
-            {fuelTypesData.types
-              .filter(type => selectedFuelTypes.includes(type.id))
-              .map((type) => (
-                <TouchableOpacity
-                  key={type.id}
-                  className={`p-4 border-b border-slate-200 dark:border-slate-700 ${
-                    selectedFuelType === type.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                  }`}
-                  onPress={() => handleFuelTypeSelect(type.id)}
-                >
-                  <View className="flex-row items-center">
-                    <Ionicons
-                      name={type.icon as any}
-                      size={24}
-                      color={selectedFuelType === type.id ? '#2563eb' : '#64748b'}
-                    />
-                    <Text className={`ml-3 text-lg ${
+            {availableFuelTypes.map((type) => (
+              <TouchableOpacity
+                key={type.id}
+                className={`p-4 border-b border-slate-200 dark:border-slate-700 ${
+                  selectedFuelType === type.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                }`}
+                onPress={() => handleFuelTypeSelect(type.id)}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons
+                    name={type.icon as any}
+                    size={24}
+                    color={selectedFuelType === type.id ? '#2563eb' : '#64748b'}
+                  />
+                  <Text
+                    className={`ml-3 text-base ${
                       selectedFuelType === type.id
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-slate-700 dark:text-slate-300'
-                    }`}>
-                      {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-slate-800 dark:text-slate-200'
+                    }`}
+                  >
+                    {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
         </View>
       </View>

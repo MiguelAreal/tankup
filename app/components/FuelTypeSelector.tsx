@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
 import { Strings } from '../../types/strings';
@@ -30,11 +30,19 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
   const { language, selectedFuelTypes, theme } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
 
-  // Filter fuel types based on selected types and ensure they exist in the strings
-  const fuelTypes = fuelTypesData.types.filter(type => 
-    selectedFuelTypes.includes(type.id) && 
-    type.id in strings.station.fuelType
-  );
+  // Get only the fuel types that are selected in settings
+  const fuelTypes = useMemo(() => {
+    return fuelTypesData.types.filter(type => 
+      selectedFuelTypes.includes(type.id)
+    );
+  }, [selectedFuelTypes]);
+
+  // Ensure selectedFuelType is valid
+  useEffect(() => {
+    if (!selectedFuelTypes.includes(selectedFuelType)) {
+      onFuelTypeChange(selectedFuelTypes[0] || '');
+    }
+  }, [selectedFuelTypes, selectedFuelType, onFuelTypeChange]);
 
   const handleSortPress = () => {
     if (!onSelectSort) return;
