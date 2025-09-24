@@ -1,19 +1,14 @@
+// Temporarily disabled
+// import AdBanner from './AdBanner';
+
+// export default AdBanner;
+
+// Temporary placeholder
 import React from 'react';
-import { Platform } from 'react-native';
-import AdBanner from './AdBanner';
-import WebAdBanner from './WebAdBanner';
+import { View } from 'react-native';
 
-interface ResponsiveAdBannerProps {
-  testID?: string;
-}
-
-const ResponsiveAdBanner: React.FC<ResponsiveAdBannerProps> = (props) => {
-  // Use AdMob for mobile, AdSense for web
-  return Platform.OS === 'web' ? (
-    <WebAdBanner {...props} />
-  ) : (
-    <AdBanner {...props} />
-  );
+const ResponsiveAdBanner: React.FC = () => {
+  return <View />; // Empty view as placeholder
 };
 
-export default React.memo(ResponsiveAdBanner); 
+export default ResponsiveAdBanner; 

@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { Animated, Image, Linking, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
+import { Posto } from '../../types/models/Posto';
 import stringsEN from '../assets/strings.en.json';
 import stringsPT from '../assets/strings.pt.json';
-import { Posto } from '../../types/models/Posto';
 import { getBrandImage } from '../utils/brandImages';
 import { calculateDistance } from '../utils/location';
 import { isStationOpen } from '../utils/schedule';
+import { isFavorite, removeFavorite, saveFavorite } from '../utils/storage';
 
 type Strings = typeof stringsEN;
 
@@ -22,49 +22,55 @@ interface ExtendedPostoCardProps {
   isSelected?: boolean;
 }
 
-const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, selectedFuelType, isSelected }) => {
-  const { preferredNavigationApp, language } = useAppContext();
+const PostoCard: React.FC<ExtendedPostoCardProps> = (props) => {
+  const { station, userLocation, selectedFuelType, isSelected } = props;
+  const { preferredNavigationApp, theme, language } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
   const highlightAnim = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const checkFavoriteStatus = async () => {
-      try {
-        const isFavorite = await AsyncStorage.getItem(`favorite_${station.id}`);
-        setIsFavorite(isFavorite === 'true');
-      } catch (error) {
-        // Silent error handling
-      }
-    };
     checkFavoriteStatus();
   }, [station.id]);
 
   useEffect(() => {
     if (isSelected) {
-      // Start highlight animation
+      // Start highlight animation with a more noticeable effect
       Animated.sequence([
         Animated.timing(highlightAnim, {
           toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(highlightAnim, {
+          toValue: 0.5,
           duration: 300,
           useNativeDriver: true,
         }),
         Animated.timing(highlightAnim, {
           toValue: 0,
-          duration: 1000,
+          duration: 500,
           useNativeDriver: true,
         })
       ]).start();
     }
   }, [isSelected]);
 
-  const toggleFavorite = async () => {
+  const checkFavoriteStatus = async () => {
+    const favorite = await isFavorite(station.id);
+    setIsFavorited(favorite);
+  };
+
+  const handleFavoritePress = async () => {
     try {
-      const newFavoriteStatus = !isFavorite;
-      await AsyncStorage.setItem(`favorite_${station.id}`, String(newFavoriteStatus));
-      setIsFavorite(newFavoriteStatus);
+      if (isFavorited) {
+        await removeFavorite(station.id);
+      } else {
+        await saveFavorite(station);
+      }
+      setIsFavorited(!isFavorited);
     } catch (error) {
-      // Silent error handling
+      console.error('Error toggling favorite:', error);
     }
   };
 
@@ -145,40 +151,69 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
     }
   };
 
+  const getFuelPrice = (type: string) => {
+    const fuel = station.combustiveis.find(c => c.tipo === type);
+    return fuel ? fuel.preco : null;
+  };
+
   return (
-    <Animated.View
+    <Animated.View 
       style={{
+        width: '100%',
+        marginBottom: 8,
+        padding: 16,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
         transform: [{
           scale: highlightAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1, 1.02]
+            inputRange: [0, 0.5, 1],
+            outputRange: [1, 1.02, 1]
           })
         }],
         backgroundColor: highlightAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: ['transparent', '#e0f2fe']
-        })
+          inputRange: [0, 0.5, 1],
+          outputRange: [
+            theme.card,
+            theme.primaryLight,
+            theme.card
+          ]
+        }),
+        borderWidth: isSelected ? 2 : 1,
+        borderColor: isSelected ? theme.primary : theme.border
       }}
-      className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 mx-2 my-6 border border-slate-200 dark:border-slate-700"
     >
       {/* Main row: Logo, Info */}
-      <View className="flex-row items-center justify-between">
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         {/* Logo and basic info */}
-        <View className="flex-row items-center flex-1">
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
           <Image
             source={getBrandImage(station.marca)}
             style={{ width: 40, height: 40, marginRight: 8 }}
             resizeMode="contain"
           />
-          <View className="flex-1">
-            <Text className="text-base font-bold text-slate-800 dark:text-slate-200" numberOfLines={1}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ 
+              fontSize: 16,
+              fontWeight: 'bold',
+              color: theme.text
+            }} numberOfLines={1}>
               {station.nome}
             </Text>
-            <Text className="text-xs text-slate-600 dark:text-slate-400">
+            <Text style={{ 
+              fontSize: 12,
+              color: theme.textSecondary
+            }}>
               {station.marca}
             </Text>
             {station.morada && (
-              <Text className="text-xs text-slate-500 dark:text-slate-500" numberOfLines={1}>
+              <Text style={{ 
+                fontSize: 12,
+                color: theme.textSecondary
+              }} numberOfLines={1}>
                 {station.morada.localidade}
               </Text>
             )}
@@ -186,66 +221,70 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
         </View>
 
         {/* Right side: Favorite and Price */}
-        <View className="items-end">
-          <TouchableOpacity 
-            onPress={toggleFavorite} 
-            className="p-1 mb-1"
-          >
-            <Ionicons 
-              name={isFavorite ? "heart" : "heart-outline"} 
-              size={20} 
-              color={isFavorite ? "#ef4444" : "#64748b"} 
+        <View style={{ alignItems: 'flex-end' }}>
+          <TouchableOpacity onPress={handleFavoritePress}>
+            <Ionicons
+              name={isFavorited ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorited ? theme.primary : theme.textSecondary}
             />
           </TouchableOpacity>
-
           {selectedFuel && (
-            <View className="bg-blue-50 dark:bg-blue-900/30 rounded-lg px-7 py-1">
-              <Text className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                {strings.station.fuelType[selectedFuelType as keyof typeof strings.station.fuelType]}
-              </Text>
-              <Text className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                {selectedFuel.preco.toFixed(3)}€
-              </Text>
-            </View>
+            <Text style={{ 
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: theme.text,
+              marginTop: 4
+            }}>
+              {selectedFuel.preco}€
+            </Text>
           )}
         </View>
       </View>
 
       {/* Bottom row: Status, Distance, Navigation */}
-      <View className="flex-row items-center justify-between mt-2">
-        {/* Status and distance */}
-        <View className="flex-row items-center">
-          <View className="flex-row items-center mr-3">
-            <Ionicons 
-              name="time-outline" 
-              size={14} 
-              color={isOpen ? "#16a34a" : "#dc2626"} 
-            />
-            <Text className={`text-xs font-medium ml-1 ${isOpen ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {isOpen ? strings.station.open : strings.station.closed}
-            </Text>
-          </View>
-          
-          <View className="flex-row items-center">
-            <Ionicons 
-              name="location-outline" 
-              size={14} 
-              color="#64748b" 
-            />
-            <Text className="text-xs text-slate-600 dark:text-slate-400 ml-1">
-              {distance.toFixed(1)} km
-            </Text>
-          </View>
+      <View style={{ 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginTop: 16
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ 
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: isOpen ? '#22c55e' : '#ef4444',
+            marginRight: 4
+          }} />
+          <Text style={{ 
+            fontSize: 12,
+            color: theme.textSecondary
+          }}>
+            {isOpen ? strings.station.open : strings.station.closed}
+          </Text>
         </View>
 
-        {/* Navigation button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
+          <Text style={{ 
+            color: theme.textSecondary,
+            marginLeft: 4
+          }}>
+            {distance.toFixed(1)}km
+          </Text>
+        </View>
+
         <TouchableOpacity
           onPress={() => handleNavigate(station)}
-          className="bg-blue-600 dark:bg-blue-500 px-4 py-2 rounded-lg flex-row items-center"
+          style={{ flexDirection: 'row', alignItems: 'center' }}
         >
-          <Ionicons name={getNavigationIcon()} size={16} color="white" />
-          <Text className="text-white text-sm font-medium ml-1">
-            {strings.station.openInMaps}
+          <Ionicons name={getNavigationIcon()} size={20} color={theme.primary} />
+          <Text style={{ 
+            color: theme.primary,
+            marginLeft: 4
+          }}>
+            {strings.station.openInGoogleMaps}
           </Text>
         </TouchableOpacity>
       </View>

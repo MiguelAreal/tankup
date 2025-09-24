@@ -1,24 +1,20 @@
-import { LatLng } from 'react-native-maps';
+// app/components/Map/Map.types.ts
+import { LocationObjectCoords } from 'expo-location';
 import { Posto } from '../../../types/models/Posto';
-export * from '../../../types/models';
 
 export interface MapProps {
   stations: Posto[];
-  userLocation: {
-    latitude: number;
-    longitude: number;
-  };
-  selectedFuelType: string;
+  selectedStation: Posto | null;
   onMarkerPress: (station: Posto | null) => void;
-  onMapPress?: (coordinate: LatLng) => void;
-  initialZoom?: number;
+  userLocation: LocationObjectCoords | { latitude: number; longitude: number };
+  isSearchActive?: boolean;
+  searchRadius?: number;
+  selectedFuelType: string;
   style?: any;
-  searchRadius: number;
-  mapRef?: React.RefObject<any>;
+  onMapReady?: () => void;
   center?: [number, number];
   zoom?: number;
   allowInteraction?: boolean;
-  selectedStation?: Posto | null;
 }
 
 export interface UserLocation {
@@ -28,15 +24,11 @@ export interface UserLocation {
 
 export interface MapMarkerProps {
   station: Posto;
-  onPress: (station: Posto) => void;
+  isSelected: boolean;
+  onPress: () => void;
+  selectedFuelType: string;
 }
 
 export interface UserMarkerProps {
-  userLocation: UserLocation;
+  location: LocationObjectCoords;
 }
-
-// Add a default export to satisfy the router
-export default {
-  name: 'MapTypes',
-  version: '1.0.0'
-};

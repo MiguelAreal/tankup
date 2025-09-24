@@ -1,40 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, SafeAreaView, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
+import { Linking, Platform, SafeAreaView, ScrollView, StatusBar, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Strings } from '../types/strings';
 import fuelTypesData from './assets/fuelTypes.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
+import { useAppContext } from './context/AppContext';
 
-// Map provider options
-const mapProviders = [
-  { id: 'openstreetmap', name: 'OpenStreetMap Standard', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors' },
-  { id: 'cartodb_light', name: 'CartoDB Positron (Light)', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '© OpenStreetMap, © CARTO' },
-  { id: 'cartodb_dark', name: 'CartoDB Dark Matter', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '© OpenStreetMap, © CARTO' }
-];
+// Add FuelType interface for local use
+interface FuelType {
+  id: string;
+  icon: string;
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { 
     darkMode, 
     setDarkMode, 
+    theme,
     preferredNavigationApp, 
     setPreferredNavigationApp, 
     searchRadius, 
     setSearchRadius,
-    mapProvider,
-    setMapProvider,
-    isLoading: contextLoading,
     language,
     setLanguage,
     selectedFuelTypes,
     setSelectedFuelTypes
   } = useAppContext();
   
-  const [isLoading, setIsLoading] = useState(true);
   const [isMapDropdownOpen, setIsMapDropdownOpen] = useState(false);
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
@@ -43,15 +38,12 @@ export default function SettingsScreen() {
 
   // Initialize dropdowns based on current values
   useEffect(() => {
-    if (!contextLoading) {
-      setIsLoading(false);
-      // Open the dropdowns that match the current values
-      setIsMapDropdownOpen(true);
-      setIsNavDropdownOpen(true);
-      setIsLangDropdownOpen(true);
-      setIsRadiusDropdownOpen(true);
-    }
-  }, [contextLoading]);
+    // Open the dropdowns that match the current values
+    setIsMapDropdownOpen(true);
+    setIsNavDropdownOpen(true);
+    setIsLangDropdownOpen(true);
+    setIsRadiusDropdownOpen(true);
+  }, []);
 
   // Apply dark mode class to html element
   useEffect(() => {
@@ -66,45 +58,57 @@ export default function SettingsScreen() {
   }, [darkMode]);
 
   const handleDarkModeToggle = async (value: boolean) => {
-    setDarkMode(value);
     try {
-      await AsyncStorage.setItem('darkMode', String(value));
+      await setDarkMode(value);
+      // Force update the theme
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.toggle('dark', value);
+        document.body.style.backgroundColor = value ? '#1a1a1a' : '#ffffff';
+      }
     } catch (error) {
-      // Silent error handling
+      console.error('Error toggling dark mode:', error);
     }
   };
 
-  const handleNavigationAppChange = (app: 'google_maps' | 'waze' | 'apple_maps') => {
-    setPreferredNavigationApp(app);
+  const handleNavigationAppChange = async (app: 'google_maps' | 'waze' | 'apple_maps') => {
+    try {
+      await setPreferredNavigationApp(app);
+    } catch (error) {
+      console.error('Error changing navigation app:', error);
+    }
   };
 
-  const handleRadiusChange = (radius: number) => {
-    setSearchRadius(radius);
+  const handleRadiusChange = async (radius: number) => {
+    try {
+      await setSearchRadius(radius);
+    } catch (error) {
+      console.error('Error changing search radius:', error);
+    }
   };
 
-  const handleMapProviderChange = (provider: 'openstreetmap' | 'cartodb_light' | 'cartodb_dark') => {
-    setMapProvider(provider);
-    setIsMapDropdownOpen(false);
+  const handleLanguageChange = async (lang: 'en' | 'pt') => {
+    try {
+      await setLanguage(lang);
+      setIsLangDropdownOpen(false);
+    } catch (error) {
+      console.error('Error changing language:', error);
+    }
   };
 
-  const getCurrentMapProviderName = () => {
-    return mapProviders.find(p => p.id === mapProvider)?.name || 'OpenStreetMap';
-  };
-  
-  const handleBackPress = () => {
-    router.replace('/');
-  };
-
-  const handleFuelTypeToggle = (fuelType: string) => {
-    const isSelected = selectedFuelTypes.includes(fuelType);
-    if (isSelected) {
-      if (selectedFuelTypes.length > 1) {
-        setSelectedFuelTypes(selectedFuelTypes.filter(type => type !== fuelType));
+  const handleFuelTypeToggle = async (fuelType: string) => {
+    try {
+      const isSelected = selectedFuelTypes.includes(fuelType);
+      if (isSelected) {
+        if (selectedFuelTypes.length > 1) {
+          await setSelectedFuelTypes(selectedFuelTypes.filter((type: string) => type !== fuelType));
+        }
+      } else {
+        if (selectedFuelTypes.length < 6) {
+          await setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
+        }
       }
-    } else {
-      if (selectedFuelTypes.length < 6) {
-        setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
-      }
+    } catch (error) {
+      console.error('Error toggling fuel type:', error);
     }
   };
 
@@ -135,412 +139,476 @@ export default function SettingsScreen() {
   const getCurrentRadiusText = () => {
     return `${searchRadius} km`;
   };
-
-  if (isLoading || contextLoading) {
-    return (
-      <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900 justify-center items-center">
-        <ActivityIndicator size="large" color="#2563eb" />
-      </SafeAreaView>
-    );
-  }
   
   return (
-    <SafeAreaView className="flex-1 bg-slate-100 dark:bg-slate-900">
-      <ScrollView className="flex-1">
-        {/* Botão Voltar */}
-        <View className="px-4 py-2">
-          <TouchableOpacity 
-            onPress={handleBackPress}
-            className="flex-row items-center"
-          >
-            <Ionicons name="arrow-back" size={24} color="#2563eb" />
-            <Text className="ml-2 text-xl font-semibold text-blue-600 dark:text-blue-400">
-              {strings.settings.title}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View className="p-4">
-          {/* Toggle de Modo Escuro */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
-            <View className="flex-row justify-between items-center">
-              <View className="flex-row items-center">
-                <Ionicons name="moon" size={24} color="#2563eb" />
-                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                  {strings.settings.darkMode}
-                </Text>
-              </View>
-              <Switch
-                value={darkMode}
-                onValueChange={handleDarkModeToggle}
-                trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
-                thumbColor={darkMode ? '#ffffff' : '#f3f4f6'}
-                testID="darkModeSwitch"
-              />
-            </View>
+    <>
+      <StatusBar 
+        barStyle={darkMode ? 'light-content' : 'dark-content'}
+        translucent={true}
+        backgroundColor="transparent"
+      />
+      <SafeAreaView 
+        className="flex-1"
+        style={{ 
+          paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+          backgroundColor: theme.background
+        }}
+      >
+        <ScrollView className="flex-1">
+          {/* Back Button */}
+          <View style={{ backgroundColor: theme.card }}>
+            <TouchableOpacity 
+              onPress={() => router.replace('/')}
+              className="flex-row items-center px-4 py-2"
+            >
+              <Ionicons name="arrow-back" size={24} color={theme.primary} />
+              <Text style={{ 
+                marginLeft: 8,
+                fontSize: 20,
+                fontWeight: '600',
+                color: theme.primary
+              }}>
+                {strings.settings.title}
+              </Text>
+            </TouchableOpacity>
           </View>
           
-          {/* App de Navegação Preferido */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
-            <TouchableOpacity 
-              className="flex-row justify-between items-center"
-              onPress={() => setIsNavDropdownOpen(!isNavDropdownOpen)}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="navigate" size={20} color="#2563eb" />
-                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                  {strings.settings.navigationApp}
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-slate-600 dark:text-slate-400 mr-2">
-                  {getCurrentNavAppName()}
-                </Text>
-                <Ionicons 
-                  name={isNavDropdownOpen ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color="#94a3b8" 
-                />
-              </View>
-            </TouchableOpacity>
-
-            {isNavDropdownOpen && (
-              <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
-                <TouchableOpacity 
-                  className={`p-4 rounded-lg ${
-                    preferredNavigationApp === 'google_maps' 
-                      ? 'bg-blue-50 dark:bg-blue-900/30' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  }`}
-                  onPress={() => {
-                    handleNavigationAppChange('google_maps');
-                    setIsNavDropdownOpen(false);
-                  }}
-                >
-                  <Text 
-                    className={`${
-                      preferredNavigationApp === 'google_maps'
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Google Maps
+          <View className="p-4">
+            {/* Dark Mode Toggle */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
+              <View className="flex-row justify-between items-center">
+                <View className="flex-row items-center">
+                  <Ionicons name="moon" size={24} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
+                    {strings.settings.darkMode}
                   </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  className={`p-4 rounded-lg ${
-                    preferredNavigationApp === 'waze' 
-                      ? 'bg-blue-50 dark:bg-blue-900/30' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  }`}
-                  onPress={() => {
-                    handleNavigationAppChange('waze');
-                    setIsNavDropdownOpen(false);
-                  }}
-                >
-                  <Text 
-                    className={`${
-                      preferredNavigationApp === 'waze'
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Waze
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  className={`p-4 rounded-lg ${
-                    preferredNavigationApp === 'apple_maps' 
-                      ? 'bg-blue-50 dark:bg-blue-900/30' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  }`}
-                  onPress={() => {
-                    handleNavigationAppChange('apple_maps');
-                    setIsNavDropdownOpen(false);
-                  }}
-                >
-                  <Text 
-                    className={`${
-                      preferredNavigationApp === 'apple_maps'
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Apple Maps
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-          
-          {/* Raio de Pesquisa */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
-            <TouchableOpacity 
-              className="flex-row justify-between items-center"
-              onPress={() => setIsRadiusDropdownOpen(!isRadiusDropdownOpen)}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="location" size={20} color="#2563eb" />
-                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                  {strings.settings.searchRadius}
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-slate-600 dark:text-slate-400 mr-2">
-                  {getCurrentRadiusText()}
-                </Text>
-                <Ionicons 
-                  name={isRadiusDropdownOpen ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color="#94a3b8" 
-                />
-              </View>
-            </TouchableOpacity>
-
-            {isRadiusDropdownOpen && (
-              <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
-                <View className="flex-row justify-between mt-4">
-                  {[5, 10, 15, 20].map((radius) => (
-                    <TouchableOpacity
-                      key={radius}
-                      className={`py-4 px-8 rounded-lg ${
-                        searchRadius === radius
-                          ? 'bg-blue-600 dark:bg-blue-500'
-                          : 'bg-slate-200 dark:bg-slate-700'
-                      }`}
-                      onPress={() => {
-                        handleRadiusChange(radius);
-                        setIsRadiusDropdownOpen(false);
-                      }}
-                      testID={`radius${radius}Button`}
-                    >
-                      <Text
-                        className={`${
-                          searchRadius === radius
-                            ? 'text-white font-medium'
-                            : 'text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        {radius} km
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
                 </View>
+                <Switch
+                  value={darkMode}
+                  onValueChange={handleDarkModeToggle}
+                  trackColor={{ false: '#d1d5db', true: theme.primary }}
+                  thumbColor={darkMode ? '#ffffff' : '#f3f4f6'}
+                  testID="darkModeSwitch"
+                />
               </View>
-            )}
-          </View>
-          
-          {/* Map Provider Selection - Only show on web */}
-          {Platform.OS === 'web' && (
-            <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
+            </View>
+            
+            {/* Preferred Navigation App */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
               <TouchableOpacity 
                 className="flex-row justify-between items-center"
-                onPress={() => setIsMapDropdownOpen(!isMapDropdownOpen)}
+                onPress={() => setIsNavDropdownOpen(!isNavDropdownOpen)}
               >
                 <View className="flex-row items-center">
-                  <Ionicons name="map" size={20} color="#2563eb" />
-                  <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                    Estilo do Mapa
+                  <Ionicons name="navigate" size={20} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
+                    {strings.settings.navigationApp}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
-                  <Text className="text-slate-600 dark:text-slate-400 mr-2">
-                    {getCurrentMapProviderName()}
+                  <Text style={{ 
+                    marginRight: 8,
+                    color: theme.text
+                  }}>
+                    {getCurrentNavAppName()}
                   </Text>
                   <Ionicons 
-                    name={isMapDropdownOpen ? "chevron-up" : "chevron-down"} 
+                    name={isNavDropdownOpen ? "chevron-up" : "chevron-down"} 
                     size={20} 
-                    color="#94a3b8" 
+                    color={darkMode ? "#94a3b8" : "#64748b"} 
                   />
                 </View>
               </TouchableOpacity>
-
-              {isMapDropdownOpen && (
+              
+              {isNavDropdownOpen && (
                 <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
-                  {mapProviders.map((provider) => (
-                    <TouchableOpacity 
-                      key={provider.id}
-                      className={`p-4 rounded-lg ${
-                        mapProvider === provider.id 
-                          ? 'bg-blue-50 dark:bg-blue-900/30' 
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  <TouchableOpacity 
+                    className={`p-4 rounded-lg ${
+                      preferredNavigationApp === 'google_maps' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30' 
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    }`}
+                    onPress={() => {
+                      handleNavigationAppChange('google_maps');
+                      setIsNavDropdownOpen(false);
+                    }}
+                  >
+                    <Text 
+                      className={`${
+                        preferredNavigationApp === 'google_maps'
+                          ? 'text-blue-600 dark:text-blue-400 font-medium'
+                          : 'text-slate-600 dark:text-slate-400'
                       }`}
-                      onPress={() => handleMapProviderChange(provider.id as any)}
+                    >
+                      Google Maps
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    className={`p-4 rounded-lg ${
+                      preferredNavigationApp === 'waze' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30' 
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    }`}
+                    onPress={() => {
+                      handleNavigationAppChange('waze');
+                      setIsNavDropdownOpen(false);
+                    }}
+                  >
+                    <Text 
+                      className={`${
+                        preferredNavigationApp === 'waze'
+                          ? 'text-blue-600 dark:text-blue-400 font-medium'
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      Waze
+                    </Text>
+                  </TouchableOpacity>
+
+                  {Platform.OS === 'ios' && (
+                    <TouchableOpacity 
+                      className={`p-4 rounded-lg ${
+                        preferredNavigationApp === 'apple_maps' 
+                          ? 'bg-blue-50 dark:bg-blue-900/30' 
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                      }`}
+                      onPress={() => {
+                        handleNavigationAppChange('apple_maps');
+                        setIsNavDropdownOpen(false);
+                      }}
                     >
                       <Text 
                         className={`${
-                          mapProvider === provider.id
+                          preferredNavigationApp === 'apple_maps'
                             ? 'text-blue-600 dark:text-blue-400 font-medium'
                             : 'text-slate-600 dark:text-slate-400'
                         }`}
                       >
-                        {provider.name}
+                        Apple Maps
                       </Text>
                     </TouchableOpacity>
-                  ))}
+                  )}
                 </View>
               )}
             </View>
-          )}
 
-          {/* Idioma */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
-            <TouchableOpacity 
-              className="flex-row justify-between items-center"
-              onPress={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="language" size={20} color="#2563eb" />
-                <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                  {strings.settings.language}
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-slate-600 dark:text-slate-400 mr-2">
-                  {getCurrentLanguageName()}
-                </Text>
-                <Ionicons 
-                  name={isLangDropdownOpen ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color="#94a3b8" 
-                />
-              </View>
-            </TouchableOpacity>
-
-            {isLangDropdownOpen && (
-              <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
-                <TouchableOpacity 
-                  className={`p-4 rounded-lg ${
-                    language === 'pt' 
-                      ? 'bg-blue-50 dark:bg-blue-900/30' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  }`}
-                  onPress={() => {
-                    setLanguage('pt');
-                    setIsLangDropdownOpen(false);
-                  }}
-                >
-                  <Text 
-                    className={`${
-                      language === 'pt'
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Português
+            {/* Search Radius */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
+              <TouchableOpacity 
+                className="flex-row justify-between items-center"
+                onPress={() => setIsRadiusDropdownOpen(!isRadiusDropdownOpen)}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name="location" size={20} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
+                    {strings.settings.searchRadius}
                   </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  className={`p-4 rounded-lg ${
-                    language === 'en' 
-                      ? 'bg-blue-50 dark:bg-blue-900/30' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                  }`}
-                  onPress={() => {
-                    setLanguage('en');
-                    setIsLangDropdownOpen(false);
-                  }}
-                >
-                  <Text 
-                    className={`${
-                      language === 'en'
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    English
+                </View>
+                <View className="flex-row items-center">
+                  <Text style={{ 
+                    marginRight: 8,
+                    color: theme.text
+                  }}>
+                    {getCurrentRadiusText()}
                   </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+                  <Ionicons 
+                    name={isRadiusDropdownOpen ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={darkMode ? "#94a3b8" : "#64748b"} 
+                  />
+                </View>
+              </TouchableOpacity>
 
-          {/* Fuel Type Selection */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="water" size={24} color="#2563eb" />
-              <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                {strings.settings.fuelType}
-              </Text>
+              {isRadiusDropdownOpen && (
+                <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
+                  <View className="flex-row justify-between mt-4 gap-2">
+                    {[5, 10, 15, 20].map((radius) => (
+                      <TouchableOpacity
+                        key={radius}
+                        className={`flex-1 py-2 rounded-lg ${
+                          searchRadius === radius
+                            ? 'bg-blue-600 dark:bg-blue-500'
+                            : 'bg-slate-200 dark:bg-slate-700'
+                        }`}
+                        onPress={() => {
+                          handleRadiusChange(radius);
+                          setIsRadiusDropdownOpen(false);
+                        }}
+                        testID={`radius${radius}Button`}
+                      >
+                        <Text
+                          className={`${
+                            searchRadius === radius
+                              ? 'text-white font-medium'
+                              : 'text-slate-700 dark:text-slate-300'
+                          } text-center`}
+                        >
+                          {radius} km
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
             
-            <Text className="text-slate-600 dark:text-slate-400 mb-4">
-              {language === 'en' 
-                ? 'Select up to 6 fuel types to display in the main screen'
-                : 'Selecione até 6 tipos de combustível para exibir na tela principal'}
-            </Text>
-
-            <View className="flex-row flex-wrap">
-              {fuelTypesData.types.map((type) => (
-                <TouchableOpacity
-                  key={type.id}
-                  className={`mr-2 mb-2 p-2 px-4 rounded-lg ${
-                    selectedFuelTypes.includes(type.id)
-                      ? 'bg-blue-600'
-                      : 'bg-slate-200 dark:bg-slate-700'
-                  }`}
-                  onPress={() => handleFuelTypeToggle(type.id)}
-                >
-                  <View className="flex-row items-center">
-                    <Ionicons
-                      name={type.icon as any}
-                      size={20}
-                      color={selectedFuelTypes.includes(type.id) ? '#ffffff' : '#64748b'}
-                    />
-                    <Text
-                      className={`ml-2 ${
-                        selectedFuelTypes.includes(type.id)
-                          ? 'text-white font-medium'
-                          : 'text-slate-700 dark:text-slate-300'
+            {/* Language Selection */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
+              <TouchableOpacity 
+                className="flex-row justify-between items-center"
+                onPress={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name="language" size={20} color={theme.primary} />
+                  <Text style={{ 
+                    marginLeft: 12,
+                    fontSize: 18,
+                    color: theme.text
+                  }}>
+                    {strings.settings.language}
+                  </Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Text style={{ 
+                    marginRight: 8,
+                    color: theme.text
+                  }}>
+                    {getCurrentLanguageName()}
+                  </Text>
+                  <Ionicons 
+                    name={isLangDropdownOpen ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={darkMode ? "#94a3b8" : "#64748b"} 
+                  />
+                </View>
+              </TouchableOpacity>
+              
+              {isLangDropdownOpen && (
+                <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
+                  <TouchableOpacity 
+                    className={`p-4 rounded-lg ${
+                      language === 'pt' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30' 
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    }`}
+                    onPress={() => {
+                      handleLanguageChange('pt');
+                      setIsLangDropdownOpen(false);
+                    }}
+                  >
+                    <Text 
+                      className={`${
+                        language === 'pt'
+                          ? 'text-blue-600 dark:text-blue-400 font-medium'
+                          : 'text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
+                      Português
                     </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    className={`p-4 rounded-lg ${
+                      language === 'en' 
+                        ? 'bg-blue-50 dark:bg-blue-900/30' 
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    }`}
+                    onPress={() => {
+                      handleLanguageChange('en');
+                      setIsLangDropdownOpen(false);
+                    }}
+                  >
+                    <Text 
+                      className={`${
+                        language === 'en'
+                          ? 'text-blue-600 dark:text-blue-400 font-medium'
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      English
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Fuel Type Selection */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="water" size={24} color={theme.primary} />
+                <Text style={{ 
+                  marginLeft: 12,
+                  fontSize: 18,
+                  color: theme.text
+                }}>
+                  {strings.settings.fuelType}
+                </Text>
+              </View>
+              
+              <Text style={{ 
+                marginBottom: 16,
+                color: theme.text
+              }}>
+                {language === 'en' 
+                  ? 'Select up to 6 fuel types to display in the main screen'
+                  : 'Selecione até 6 tipos de combustível para exibir na tela principal'}
+              </Text>
+
+              <View className="flex-row flex-wrap">
+                {fuelTypesData.types.map((type: FuelType) => (
+                  <TouchableOpacity
+                    key={type.id}
+                    className={`mr-2 mb-2 p-2 px-4 rounded-lg ${
+                      selectedFuelTypes.includes(type.id)
+                        ? 'bg-blue-600 dark:bg-blue-500'
+                        : 'bg-slate-200 dark:bg-slate-700'
+                    }`}
+                    onPress={() => handleFuelTypeToggle(type.id)}
+                  >
+                    <View className="flex-row items-center">
+                      <Ionicons
+                        name={type.icon as any}
+                        size={20}
+                        color={selectedFuelTypes.includes(type.id) ? '#ffffff' : darkMode ? '#94a3b8' : '#64748b'}
+                      />
+                      <Text
+                        className={`ml-2 ${
+                          selectedFuelTypes.includes(type.id)
+                            ? 'text-white font-medium'
+                            : 'text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* About */}
+            <View style={{ 
+              backgroundColor: theme.card,
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+              elevation: 2
+            }}>
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="information-circle" size={24} color={theme.primary} />
+                <Text style={{ 
+                  marginLeft: 12,
+                  fontSize: 18,
+                  color: theme.text
+                }}>
+                  {strings.settings.about}
+                </Text>
+              </View>
+              
+              <Text style={{ 
+                marginBottom: 8,
+                color: theme.text
+              }}>
+                {strings.settings.aboutText}
+              </Text>
+              
+              <Text style={{ 
+                color: theme.text
+              }}>
+                {strings.settings.version}: 1.0.0
+              </Text>
+
+              <TouchableOpacity
+                className="mt-2"
+                onPress={() => Linking.openURL('https://github.com/MiguelAreal')}
+              >
+                <Text style={{ 
+                  color: theme.text
+                }}>
+                  {strings.settings.developer}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="mt-2"
+                onPress={() => Linking.openURL('https://precoscombustiveis.dgeg.gov.pt')}
+              >
+                <Text style={{ 
+                  color: theme.text
+                }}>
+                  {strings.settings.provider}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-
-          {/* Sobre */}
-          <View className="bg-white dark:bg-slate-800 rounded-lg p-4 mb-6">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="information-circle" size={24} color="#2563eb" />
-              <Text className="ml-3 text-lg text-slate-800 dark:text-slate-200">
-                {strings.settings.about}
-              </Text>
-            </View>
-            
-            <Text className="text-slate-600 dark:text-slate-400 mb-2">
-              {strings.settings.aboutText}
-            </Text>
-            
-            <Text className="text-slate-600 dark:text-slate-400 mb-2">
-              {strings.settings.version}: 1.0.0
-            </Text>
-
-            <TouchableOpacity
-              className="mt-2"
-              onPress={() => Linking.openURL('https://github.com/MiguelAreal')}
-            >
-              <Text className="text-blue-600 dark:text-blue-400">
-              {strings.settings.developer}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="mt-2"
-              onPress={() => Linking.openURL('https://precoscombustiveis.dgeg.gov.pt')}
-            >
-              <Text className="text-blue-600 dark:text-blue-400">
-              {strings.settings.provider}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </>
   );
 }

@@ -1,9 +1,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { Appearance, useColorScheme } from 'react-native';
 import fuelTypesData from '../app/assets/fuelTypes.json';
 import i18n from '../app/i18n';
 import { Posto } from '../types/models';
+
+// Theme configuration
+const lightTheme = {
+  background: '#f1f5f9', // slate-100
+  card: '#ffffff',
+  text: '#1e293b', // slate-900
+  textSecondary: '#64748b', // slate-500
+  border: '#e2e8f0', // slate-200
+  primary: '#2563eb', // blue-600
+  primaryLight: '#dbeafe', // blue-100
+  accent: '#3b82f6', // blue-500
+};
+
+const darkTheme = {
+  background: '#0f172a', // slate-900
+  card: '#1e293b', // slate-800
+  text: '#f1f5f9', // slate-100
+  textSecondary: '#94a3b8', // slate-400
+  border: '#334155', // slate-700
+  primary: '#3b82f6', // blue-500
+  primaryLight: '#1e3a8a', // blue-900
+  accent: '#60a5fa', // blue-400
+};
 
 // Definindo os tipos para o contexto
 type NavigationAppType = 'google_maps' | 'waze' | 'apple_maps';
@@ -25,6 +48,7 @@ type SearchState = {
 interface AppContextType {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
+  theme: typeof lightTheme;
   preferredNavigationApp: NavigationAppType;
   setPreferredNavigationApp: (app: NavigationAppType) => void;
   searchRadius: number;
@@ -40,12 +64,14 @@ interface AppContextType {
   searchState: SearchState;
   setSearchState: (state: SearchState) => void;
   clearSearch: () => void;
+  adUnitId: string;
 }
 
 // Valores padrão para o contexto
 const defaultValues: AppContextType = {
   darkMode: false,
   setDarkMode: () => {},
+  theme: lightTheme,
   preferredNavigationApp: 'google_maps',
   setPreferredNavigationApp: () => {},
   searchRadius: 5,
@@ -61,6 +87,7 @@ const defaultValues: AppContextType = {
   searchState: null,
   setSearchState: () => {},
   clearSearch: () => {},
+  adUnitId: __DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-2077617628178689/9692584772',
 };
 
 // Criação do contexto
@@ -75,6 +102,7 @@ interface AppProviderProps {
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const systemColorScheme = useColorScheme();
   const [darkMode, setDarkModeState] = useState<boolean>(systemColorScheme === 'dark');
+  const [theme, setTheme] = useState(darkMode ? darkTheme : lightTheme);
   const [preferredNavigationApp, setPreferredNavigationAppState] = useState<NavigationAppType>(
     defaultValues.preferredNavigationApp
   );
@@ -167,7 +195,22 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setSearchState(null);
   };
 
-  // Carrega as configurações iniciais
+  // Add new effect to handle search state changes
+  useEffect(() => {
+    if (searchState === null) {
+      // When search is cleared, ensure we clean up any persisted search state
+      AsyncStorage.removeItem('searchState').catch(() => {
+        // Silent error handling
+      });
+    } else {
+      // When search state changes, persist it
+      AsyncStorage.setItem('searchState', JSON.stringify(searchState)).catch(() => {
+        // Silent error handling
+      });
+    }
+  }, [searchState]);
+
+  // Add search state to initial loading
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -177,14 +220,16 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           searchRadius,
           mapProvider,
           language,
-          selectedFuelTypes
+          selectedFuelTypes,
+          savedSearchState
         ] = await Promise.all([
           AsyncStorage.getItem('darkMode'),
           AsyncStorage.getItem('preferredNavigationApp'),
           AsyncStorage.getItem('searchRadius'),
           AsyncStorage.getItem('mapProvider'),
           AsyncStorage.getItem('language'),
-          AsyncStorage.getItem('selectedFuelTypes')
+          AsyncStorage.getItem('selectedFuelTypes'),
+          AsyncStorage.getItem('searchState')
         ]);
 
         if (darkMode !== null) setDarkModeState(darkMode === 'true');
@@ -193,7 +238,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             const parsedApp = JSON.parse(preferredNavigationApp);
             setPreferredNavigationAppState(parsedApp as NavigationAppType);
           } catch {
-            // If parsing fails, use the value directly
             setPreferredNavigationAppState(preferredNavigationApp as NavigationAppType);
           }
         }
@@ -201,6 +245,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         if (mapProvider) setMapProviderState(mapProvider as MapProviderType);
         if (language) setLanguageState(language as LanguageType);
         if (selectedFuelTypes) setSelectedFuelTypesState(JSON.parse(selectedFuelTypes));
+        if (savedSearchState) {
+          try {
+            const parsedSearchState = JSON.parse(savedSearchState);
+            setSearchState(parsedSearchState);
+          } catch {
+            // If parsing fails, clear the search state
+            AsyncStorage.removeItem('searchState');
+          }
+        }
       } catch (error) {
         // Silent error handling
       } finally {
@@ -213,11 +266,55 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   // Atualiza o modo escuro quando o tema do sistema muda
   useEffect(() => {
-    const savedDarkMode = AsyncStorage.getItem('darkMode');
-    if (savedDarkMode === null) {
-      setDarkModeState(systemColorScheme === 'dark');
-    }
+    const checkSystemTheme = async () => {
+      const savedDarkMode = await AsyncStorage.getItem('darkMode');
+      if (savedDarkMode === null) {
+        // If no saved preference, use system theme
+        setDarkModeState(systemColorScheme === 'dark');
+      }
+    };
+    checkSystemTheme();
   }, [systemColorScheme]);
+
+  // Add a new effect to handle system theme changes
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      const checkSystemTheme = async () => {
+        const savedDarkMode = await AsyncStorage.getItem('darkMode');
+        if (savedDarkMode === null) {
+          // If no saved preference, use system theme
+          setDarkModeState(colorScheme === 'dark');
+        }
+      };
+      checkSystemTheme();
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Update theme when darkMode changes
+  useEffect(() => {
+    setTheme(darkMode ? darkTheme : lightTheme);
+  }, [darkMode]);
+
+  // Update darkMode when system theme changes
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      const checkSystemTheme = async () => {
+        const savedDarkMode = await AsyncStorage.getItem('darkMode');
+        if (savedDarkMode === null) {
+          setDarkModeState(colorScheme === 'dark');
+        }
+      };
+      checkSystemTheme();
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // Salva as configurações quando alteradas
   useEffect(() => {
@@ -251,6 +348,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       value={{
         darkMode,
         setDarkMode,
+        theme,
         preferredNavigationApp,
         setPreferredNavigationApp,
         searchRadius,
@@ -265,7 +363,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         handleFuelTypeToggle,
         searchState,
         setSearchState,
-        clearSearch
+        clearSearch,
+        adUnitId: defaultValues.adUnitId
       }}
     >
       {children}
