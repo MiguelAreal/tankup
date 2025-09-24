@@ -1,7 +1,8 @@
 ## \:fuelpump: Tankup - App para encontrar combustível mais barato
 
-### \:bulb: Conceito
+Nota: Este repositório é apenas para o front-end.
 
+### \:bulb: Conceito
 Aplicação Android (ideal para Android Auto ou head unit) que usa a localização GPS para mostrar os postos de abastecimento mais baratos nas redondezas, com opções de navegação rápida por Google Maps, Waze ou Apple Maps. **Válido apenas para Portugal**
 
 ---
@@ -28,34 +29,14 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 
 ---
 
-### \:iphone: Stack Técnica
+### Stack Técnica
 
 #### Frontend / App
 
-* Plataforma: Expo-Router (React Native)
+* Framework: Expo-Router (React Native)
 * UI: Material Design
 * GPS: Expo Location
 * Requests: fetch/axios
-
----
-
-### \:rocket: MVP - Primeira Versão
-
-1. Obter localização atual do utilizador. ✅
-2. Mostrar lista dos postos por filtro num raio de 5/10/20 km. ✅
-3. Mostrar tipo de combustível, preço, distância atual. ✅
-4. Botões "Abrir no Google Maps", "Abrir no Waze". ✅
-5. Pesquisa por tipo de combustível. ✅
-6. Permitir em alternativa pesquisar por Distrito e Concelho manualmente. ✅
-7. Funcionalidades sem permitir localização. ✅
-
----
-
-### \:rocket: Necessidades
-
-1. Tem que ser uma aplicação **leve**, com um máximo de 30 MB.
-2. Tem que estar bem optimizada para dispositivos menos potentes.
-3. Sem conta para utilização — completamente como ferramenta anónima.
 
 ---
 
@@ -73,18 +54,10 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
   * Ícone da marca (Galp, BP, Prio, etc.)
 
 ---
-
-### \:white\_check\_mark: Futuras Funcionalidades
-
-* Voz: "Leva-me ao posto mais barato"
-* Cache offline temporária para zonas com pouca ligação
-
----
-
 ### \:lock: Privacidade e Permissões
 
-* A aplicação **não recolhe nem armazena dados pessoais**.
-* A localização é usada **apenas** para apresentar postos de abastecimento próximos.
+* A aplicação **não armazena dados pessoais**.
+* A localização recolhida é usada **apenas** para apresentar postos de abastecimento próximos, de seguida sendo descartada.
 
 ---
 
