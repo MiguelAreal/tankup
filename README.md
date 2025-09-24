@@ -3,7 +3,7 @@
 Nota: Este repositório é apenas para o front-end.
 
 ### \:bulb: Conceito
-Aplicação Android (ideal para Android Auto ou head unit) que usa a localização GPS para mostrar os postos de abastecimento mais baratos nas redondezas, com opções de navegação rápida por Google Maps, Waze ou Apple Maps. **Válido apenas para Portugal**
+Aplicação Web, Android e IOS que utiliza a localização GPS para mostrar os postos de abastecimento mais baratos nas redondezas, com opções de navegação rápida por Google Maps, Waze ou Apple Maps. **Válido apenas para Portugal**
 
 ---
 
@@ -15,7 +15,7 @@ Aplicação Android (ideal para Android Auto ou head unit) que usa a localizaç�
 * Abertura direta de rotas em Google Maps, Waze ou Apple Maps
 * Guardar postos favoritos localmente 
 * Interface simples, com botões grandes e modo escuro
-* Pesquisa de postos num distrito ou cidade específico
+* Pesquisa de postos num distrito/cidade específica
 
 ---
 
