@@ -4,10 +4,9 @@ export interface Strings {
     distance: string;
     notAvailable: string;
     goodPrice: string;
-    openInMaps: string;
+    openInGoogleMaps: string;
     openInWaze: string;
     openInAppleMaps: string;
-    openInGoogleMaps: string;
     cheapestNearby: string;
     noStationsFound: string;
     locationRequired: string;

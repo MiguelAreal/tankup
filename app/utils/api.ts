@@ -1,11 +1,17 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { Posto } from '../../types/models/Posto';
+
+// Extend AxiosRequestConfig to include retry properties
+interface RetryConfig extends AxiosRequestConfig {
+  retry?: number;
+  retryDelay?: number;
+}
 
 // API Configuration
 const API_CONFIG = {
-  baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://tankup-backend.onrender.com',
-  //baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
-  timeout: 5000,
+  //baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://tankup-backend.onrender.com',
+  baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000',
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -15,6 +21,24 @@ const API_CONFIG = {
 
 // Create an axios instance with base URL to simplify future API calls
 const api = axios.create(API_CONFIG);
+
+// Add retry interceptor
+api.interceptors.response.use(undefined, async (err) => {
+  const { config } = err;
+  if (!config) {
+    return Promise.reject(err);
+  }
+  const retryConfig = config as RetryConfig;
+  if (!retryConfig.retry) {
+    return Promise.reject(err);
+  }
+  retryConfig.retry -= 1;
+  const delayRetry = new Promise(resolve => {
+    setTimeout(resolve, retryConfig.retryDelay || 1000);
+  });
+  await delayRetry;
+  return api(config);
+});
 
 // API Endpoints
 const ENDPOINTS = {
@@ -57,7 +81,11 @@ export async function fetchNearbyStations<T>(
   logApiCall(ENDPOINTS.nearby, params);
   
   try {
-    const response = await api.get<T>(ENDPOINTS.nearby, { params });
+    const response = await api.get<T>(ENDPOINTS.nearby, { 
+      params,
+      retry: 3,
+      retryDelay: 1000
+    } as RetryConfig);
     console.log('✅ API Response:', {
       endpoint: ENDPOINTS.nearby,
       status: response.status,
@@ -83,6 +111,7 @@ export interface SearchParams {
   municipio?: string;
   fuelType?: string;
   sortBy?: 'mais_caro' | 'mais_barato';
+  radius?: number;
 }
 
 export const fetchStationsByLocation = async (params: SearchParams): Promise<Posto[]> => {

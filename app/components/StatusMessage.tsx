@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAppContext } from '../../context/AppContext';
 
 type StatusType = 'error' | 'warning' | 'info' | 'success';
-type IconName = 'alert-circle' | 'warning' | 'information-circle' | 'checkmark-circle';
+type IconName = 'alert-circle' | 'warning' | 'information-circle' | 'checkmark-circle' | 'close';
 
 interface StatusMessageProps {
   message: string;
@@ -18,6 +19,8 @@ const StatusMessage: React.FC<StatusMessageProps> = ({
   icon,
   onClose
 }) => {
+  const { theme, darkMode } = useAppContext();
+
   const getIconName = (): IconName => {
     if (icon) return icon;
     switch (type) {
@@ -37,30 +40,30 @@ const StatusMessage: React.FC<StatusMessageProps> = ({
   const getBackgroundColor = () => {
     switch (type) {
       case 'error':
-        return '#fee2e2';
+        return darkMode ? '#7f1d1d' : '#fee2e2';
       case 'warning':
-        return '#fef3c7';
+        return darkMode ? '#78350f' : '#fef3c7';
       case 'info':
-        return '#dbeafe';
+        return darkMode ? '#1e3a8a' : '#dbeafe';
       case 'success':
-        return '#dcfce7';
+        return darkMode ? '#14532d' : '#dcfce7';
       default:
-        return '#fee2e2';
+        return darkMode ? '#7f1d1d' : '#fee2e2';
     }
   };
 
   const getTextColor = () => {
     switch (type) {
       case 'error':
-        return '#dc2626';
+        return darkMode ? '#fecaca' : '#dc2626';
       case 'warning':
-        return '#d97706';
+        return darkMode ? '#fcd34d' : '#d97706';
       case 'info':
-        return '#2563eb';
+        return darkMode ? '#93c5fd' : '#2563eb';
       case 'success':
-        return '#16a34a';
+        return darkMode ? '#86efac' : '#16a34a';
       default:
-        return '#dc2626';
+        return darkMode ? '#fecaca' : '#dc2626';
     }
   };
 

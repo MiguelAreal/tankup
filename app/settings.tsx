@@ -8,17 +8,11 @@ import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
 import { useAppContext } from './context/AppContext';
 
+// Add FuelType interface for local use
 interface FuelType {
   id: string;
   icon: string;
 }
-
-// Map provider options
-const mapProviders = [
-  { id: 'openstreetmap', name: 'OpenStreetMap Standard', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© OpenStreetMap contributors' },
-  { id: 'cartodb_light', name: 'CartoDB Positron (Light)', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '© OpenStreetMap, © CARTO' },
-  { id: 'cartodb_dark', name: 'CartoDB Dark Matter', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '© OpenStreetMap, © CARTO' }
-];
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -30,8 +24,6 @@ export default function SettingsScreen() {
     setPreferredNavigationApp, 
     searchRadius, 
     setSearchRadius,
-    mapProvider,
-    setMapProvider,
     language,
     setLanguage,
     selectedFuelTypes,
@@ -66,46 +58,58 @@ export default function SettingsScreen() {
   }, [darkMode]);
 
   const handleDarkModeToggle = async (value: boolean) => {
-    await setDarkMode(value);
-  };
-
-  const handleNavigationAppChange = async (app: 'google_maps' | 'waze' | 'apple_maps') => {
-    await setPreferredNavigationApp(app);
-  };
-
-  const handleRadiusChange = async (radius: number) => {
-    await setSearchRadius(radius);
-  };
-
-  const handleMapProviderChange = async (provider: 'openstreetmap' | 'cartodb_light' | 'cartodb_dark') => {
-    await setMapProvider(provider);
-    setIsMapDropdownOpen(false);
-  };
-
-  const handleLanguageChange = async (lang: 'en' | 'pt') => {
-    await setLanguage(lang);
-    setIsLangDropdownOpen(false);
-  };
-
-  const handleFuelTypeToggle = async (fuelType: string) => {
-    const isSelected = selectedFuelTypes.includes(fuelType);
-    if (isSelected) {
-      if (selectedFuelTypes.length > 1) {
-        await setSelectedFuelTypes(selectedFuelTypes.filter((type: string) => type !== fuelType));
+    try {
+      await setDarkMode(value);
+      // Force update the theme
+      if (typeof document !== 'undefined') {
+        document.documentElement.classList.toggle('dark', value);
+        document.body.style.backgroundColor = value ? '#1a1a1a' : '#ffffff';
       }
-    } else {
-      if (selectedFuelTypes.length < 6) {
-        await setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
-      }
+    } catch (error) {
+      console.error('Error toggling dark mode:', error);
     }
   };
 
-  const getCurrentMapProviderName = () => {
-    return mapProviders.find(p => p.id === mapProvider)?.name || 'OpenStreetMap';
+  const handleNavigationAppChange = async (app: 'google_maps' | 'waze' | 'apple_maps') => {
+    try {
+      await setPreferredNavigationApp(app);
+    } catch (error) {
+      console.error('Error changing navigation app:', error);
+    }
   };
-  
-  const handleBackPress = () => {
-    router.replace('/');
+
+  const handleRadiusChange = async (radius: number) => {
+    try {
+      await setSearchRadius(radius);
+    } catch (error) {
+      console.error('Error changing search radius:', error);
+    }
+  };
+
+  const handleLanguageChange = async (lang: 'en' | 'pt') => {
+    try {
+      await setLanguage(lang);
+      setIsLangDropdownOpen(false);
+    } catch (error) {
+      console.error('Error changing language:', error);
+    }
+  };
+
+  const handleFuelTypeToggle = async (fuelType: string) => {
+    try {
+      const isSelected = selectedFuelTypes.includes(fuelType);
+      if (isSelected) {
+        if (selectedFuelTypes.length > 1) {
+          await setSelectedFuelTypes(selectedFuelTypes.filter((type: string) => type !== fuelType));
+        }
+      } else {
+        if (selectedFuelTypes.length < 6) {
+          await setSelectedFuelTypes([...selectedFuelTypes, fuelType]);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling fuel type:', error);
+    }
   };
 
   const getCurrentNavAppName = () => {
@@ -154,7 +158,7 @@ export default function SettingsScreen() {
           {/* Back Button */}
           <View style={{ backgroundColor: theme.card }}>
             <TouchableOpacity 
-              onPress={handleBackPress}
+              onPress={() => router.replace('/')}
               className="flex-row items-center px-4 py-2"
             >
               <Ionicons name="arrow-back" size={24} color={theme.primary} />
@@ -391,79 +395,6 @@ export default function SettingsScreen() {
               )}
             </View>
             
-            {/* Map Provider Selection - Only show on web */}
-            {Platform.OS === 'web' && (
-              <View style={{ 
-                backgroundColor: theme.card,
-                borderRadius: 8,
-                padding: 16,
-                marginBottom: 24,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.1,
-                shadowRadius: 2,
-                elevation: 2
-              }}>
-                <TouchableOpacity 
-                  className="flex-row justify-between items-center"
-                  onPress={() => setIsMapDropdownOpen(!isMapDropdownOpen)}
-                >
-                  <View className="flex-row items-center">
-                    <Ionicons name="map" size={20} color={theme.primary} />
-                    <Text style={{ 
-                      marginLeft: 12,
-                      fontSize: 18,
-                      color: theme.text
-                    }}>
-                      Estilo do Mapa
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <Text style={{ 
-                      marginRight: 8,
-                      color: theme.text
-                    }}>
-                      {getCurrentMapProviderName()}
-                    </Text>
-                    <Ionicons 
-                      name={isMapDropdownOpen ? "chevron-up" : "chevron-down"} 
-                      size={20} 
-                      color={darkMode ? "#94a3b8" : "#64748b"} 
-                    />
-                  </View>
-                </TouchableOpacity>
-                
-                {isMapDropdownOpen && (
-                  <View className="mt-2 border-t border-slate-200 dark:border-slate-700">
-                    {mapProviders.map((provider) => (
-                      <TouchableOpacity 
-                        key={provider.id}
-                        className={`p-4 rounded-lg ${
-                          mapProvider === provider.id 
-                            ? 'bg-blue-50 dark:bg-blue-900/30' 
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                        }`}
-                        onPress={() => {
-                          handleMapProviderChange(provider.id as any);
-                          setIsMapDropdownOpen(false);
-                        }}
-                      >
-                        <Text 
-                          className={`${
-                            mapProvider === provider.id
-                              ? 'text-blue-600 dark:text-blue-400 font-medium'
-                              : 'text-slate-600 dark:text-slate-400'
-                          }`}
-                        >
-                          {provider.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
             {/* Language Selection */}
             <View style={{ 
               backgroundColor: theme.card,

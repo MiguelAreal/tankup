@@ -2,10 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
-import { Strings } from '../../types/strings';
 import fuelTypesData from '../assets/fuelTypes.json';
-import stringsEN from '../assets/strings.en.json';
-import stringsPT from '../assets/strings.pt.json';
+import { useAppTranslation } from '../i18n';
 
 const sortOptions = [
   { id: 'mais_barato', icon: 'trending-down' },
@@ -21,14 +19,10 @@ type FuelTypeSelectorProps = {
   onSelectSort?: (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => void;
 };
 
-const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
-  selectedFuelType,
-  onFuelTypeChange,
-  selectedSort = 'mais_barato',
-  onSelectSort,
-}) => {
-  const { language, selectedFuelTypes, theme } = useAppContext();
-  const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
+const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = (props) => {
+  const { selectedFuelType, onFuelTypeChange, selectedSort = 'mais_barato', onSelectSort } = props;
+  const { selectedFuelTypes, theme } = useAppContext();
+  const { t } = useAppTranslation();
 
   // Get only the fuel types that are selected in settings
   const fuelTypes = useMemo(() => {
@@ -60,7 +54,7 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
           onPress={handleSortPress}
           style={{ backgroundColor: theme.card }}
           className="items-center justify-center w-9 h-9 rounded-full mr-2"
-          accessibilityLabel={strings.station.sortBy[selectedSort]}
+          accessibilityLabel={t(`station.sortBy.${selectedSort}`)}
         >
           <Ionicons
             name={sortOptions.find(opt => opt.id === selectedSort)?.icon as any}
@@ -96,7 +90,7 @@ const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
                 }}
                 className="ml-2"
               >
-                {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
+                {t(`station.fuelType.${type.id}`)}
               </Text>
             </View>
           </TouchableOpacity>

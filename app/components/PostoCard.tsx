@@ -22,8 +22,9 @@ interface ExtendedPostoCardProps {
   isSelected?: boolean;
 }
 
-const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, selectedFuelType, isSelected }) => {
-  const { preferredNavigationApp, language, theme } = useAppContext();
+const PostoCard: React.FC<ExtendedPostoCardProps> = (props) => {
+  const { station, userLocation, selectedFuelType, isSelected } = props;
+  const { preferredNavigationApp, theme, language } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   const [isFavorited, setIsFavorited] = useState(false);
   const highlightAnim = React.useRef(new Animated.Value(0)).current;
@@ -157,8 +158,16 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
 
   return (
     <Animated.View 
-      className="w-full mb-2 p-4 rounded-xl shadow-sm"
       style={{
+        width: '100%',
+        marginBottom: 8,
+        padding: 16,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
         transform: [{
           scale: highlightAnim.interpolate({
             inputRange: [0, 0.5, 1],
@@ -178,15 +187,15 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
       }}
     >
       {/* Main row: Logo, Info */}
-      <View className="flex-row items-center justify-between">
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         {/* Logo and basic info */}
-        <View className="flex-row items-center flex-1">
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
           <Image
             source={getBrandImage(station.marca)}
             style={{ width: 40, height: 40, marginRight: 8 }}
             resizeMode="contain"
           />
-          <View className="flex-1">
+          <View style={{ flex: 1 }}>
             <Text style={{ 
               fontSize: 16,
               fontWeight: 'bold',
@@ -212,7 +221,7 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
         </View>
 
         {/* Right side: Favorite and Price */}
-        <View className="items-end">
+        <View style={{ alignItems: 'flex-end' }}>
           <TouchableOpacity onPress={handleFavoritePress}>
             <Ionicons
               name={isFavorited ? "heart" : "heart-outline"}
@@ -234,8 +243,13 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
       </View>
 
       {/* Bottom row: Status, Distance, Navigation */}
-      <View className="flex-row items-center justify-between mt-4">
-        <View className="flex-row items-center">
+      <View style={{ 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginTop: 16
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ 
             width: 8,
             height: 8,
@@ -251,28 +265,26 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = ({ station, userLocation, se
           </Text>
         </View>
 
-        <View className="flex-row items-center">
-          <Ionicons name="location" size={16} color={theme.textSecondary} />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
           <Text style={{ 
-            fontSize: 12,
             color: theme.textSecondary,
             marginLeft: 4
           }}>
-            {distance.toFixed(1)} km
+            {distance.toFixed(1)}km
           </Text>
         </View>
 
         <TouchableOpacity
-          className="flex-row items-center"
           onPress={() => handleNavigate(station)}
+          style={{ flexDirection: 'row', alignItems: 'center' }}
         >
           <Ionicons name={getNavigationIcon()} size={20} color={theme.primary} />
           <Text style={{ 
-            fontSize: 12,
             color: theme.primary,
             marginLeft: 4
           }}>
-            {strings.station.openInMaps}
+            {strings.station.openInGoogleMaps}
           </Text>
         </TouchableOpacity>
       </View>

@@ -1,30 +1,20 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require('nativewind/metro');
+const path = require('path');
 
-const config = getDefaultConfig(__dirname)
+const config = getDefaultConfig(__dirname);
 
-// Add platform-specific module resolution
-config.resolver.sourceExts = process.env.RN_SRC_EXT
-  ? [...process.env.RN_SRC_EXT.split(','), ...config.resolver.sourceExts]
-  : config.resolver.sourceExts;
+// Platform-specific aliasing for react-native-maps
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === 'web' && moduleName === 'react-native-maps') {
+    return {
+      filePath: path.resolve(__dirname, 'app/components/Map/Map.web.tsx'),
+      type: 'sourceFile',
+    };
+  }
 
-// Add source map configuration
-config.transformer = {
-  ...config.transformer,
-  minifierConfig: {
-    keep_classnames: true,
-    keep_fnames: true,
-    mangle: {
-      keep_classnames: true,
-      keep_fnames: true,
-    },
-  },
-  getTransformOptions: async () => ({
-    transform: {
-      experimentalImportSupport: false,
-      inlineRequires: true,
-    },
-  }),
+  // fallback to default resolver
+  return context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = withNativeWind(config, { input: './app/app.css' });

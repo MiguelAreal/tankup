@@ -1,10 +1,10 @@
 {
   "station": {
     "loading": "Loading...",
-    "distance": "km away",
+    "distance": "Km away",
     "notAvailable": "Not available",
     "goodPrice": "Good price",
-    "openInMaps": "Open in Maps",
+    "openInGoogleMaps": "Open in Google Maps",
     "openInWaze": "Open in Waze",
     "openInAppleMaps": "Open in Apple Maps",
     "cheapestNearby": "Cheapest nearby",
@@ -39,8 +39,7 @@
     },
     "open": "Open",
     "closed": "Closed",
-    "opensAt": "Opens at",
-    "openInGoogleMaps": "Open in Google Maps"
+    "opensAt": "Opens at"
   },
   "search": {
     "title": "Search",

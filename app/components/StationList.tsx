@@ -52,7 +52,7 @@ const StationList: React.FC<StationListProps> = ({
   }
 
   return (
-    <View style={{ backgroundColor: theme.background }} className="flex-1">
+    <View style={{ backgroundColor: theme.background, flex: 1 }}>
       {onFuelTypeChange && onSelectSort && selectedSort && (
         <FuelTypeSelector
           selectedFuelType={selectedFuelType}
@@ -63,15 +63,27 @@ const StationList: React.FC<StationListProps> = ({
       )}
       <ScrollView
         ref={scrollViewRef}
-        className="flex-1"
-        style={{ backgroundColor: theme.background }}
+        style={{ 
+          backgroundColor: theme.background,
+          flex: 1
+        }}
         onScroll={onScroll}
         scrollEventThrottle={16}
       >
         {stations.length === 0 ? (
-          <View className="flex-1 items-center justify-center p-4">
+          <View style={{ 
+            flex: 1, 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            padding: 16,
+            backgroundColor: theme.background
+          }}>
             <Ionicons name="alert-circle-outline" size={48} color={theme.textSecondary} />
-            <Text style={{ color: theme.textSecondary }} className="mt-4 text-center">
+            <Text style={{ 
+              color: theme.textSecondary,
+              marginTop: 16,
+              textAlign: 'center'
+            }}>
               No stations found in your area
             </Text>
           </View>
@@ -79,6 +91,7 @@ const StationList: React.FC<StationListProps> = ({
           stations.map((station, index) => (
             <View
               key={station.id}
+              style={{ backgroundColor: theme.background }}
               onLayout={(event) => {
                 if (onMeasureCardHeight) {
                   onMeasureCardHeight(index, event.nativeEvent.layout.height);

@@ -8,6 +8,7 @@ type SearchState = {
   municipio?: string;
   fuelType: string;
   sortBy: 'mais_caro' | 'mais_barato';
+  radius?: number;
 } | null;
 
 type SearchContextType = {

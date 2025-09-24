@@ -17,7 +17,6 @@ import StatusMessage from './components/StatusMessage';
 import { useSearch } from './context/SearchContext';
 import { useInterstitialAd } from './hooks/useInterstitialAd';
 import { fetchNearbyStations, fetchStationsByLocation } from './utils/api';
-
 type Strings = typeof stringsEN;
 
 // Memoized components
@@ -102,7 +101,7 @@ const HomeScreen = () => {
   const [selectedStation, setSelectedStation] = useState<Posto | null>(null);
   const [currentSort, setCurrentSort] = useState<'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto'>('mais_barato');
   const lastFetchTime = useRef<number>(0);
-  const POLLING_INTERVAL = 10000; // 10 seconds in milliseconds
+  const POLLING_INTERVAL = 60000; // 1 minute in milliseconds
   const { showAd } = useInterstitialAd();
 
   // Debounced orientation change handler
@@ -112,7 +111,14 @@ const HomeScreen = () => {
 
   // Centralize search mode logic - SINGLE SOURCE OF TRUTH
   const inSearchMode = useMemo(() => {
-    return !!searchState || params.searchType === 'location' || isSearchActive;
+    const isSearching = !!searchState || params.searchType === 'location' || isSearchActive;
+    console.log('🔍 Search mode check:', { 
+      hasSearchState: !!searchState, 
+      searchType: params.searchType, 
+      isSearchActive,
+      finalResult: isSearching 
+    });
+    return isSearching;
   }, [searchState, params.searchType, isSearchActive]);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -123,7 +129,7 @@ const HomeScreen = () => {
   // Memoized fetch and filter function
   const fetchAndFilterStations = useCallback(async (location: Location.LocationObjectCoords, forceFetch: boolean = false, fuelType?: string) => {
     // HARD BLOCK: never execute in search mode
-    if (isSearchActive) {
+    if (inSearchMode) {
       console.log('❌ [HARD BLOCK] fetchAndFilterStations - Blocked in search mode');
       return;
     }
@@ -135,11 +141,25 @@ const HomeScreen = () => {
 
     const now = Date.now();
     if (!forceFetch && now - lastFetchTime.current < POLLING_INTERVAL) {
-      console.log('❌ fetchAndFilterStations - Blocked due to polling interval');
+      console.log('❌ fetchAndFilterStations - Blocked due to polling interval', {
+        timeSinceLastFetch: now - lastFetchTime.current,
+        pollingInterval: POLLING_INTERVAL
+      });
       return;
     }
 
-    console.log('✅ fetchAndFilterStations - Starting fetch...');
+    // Add a debounce for force fetches
+    if (forceFetch && now - lastFetchTime.current < 1000) {
+      console.log('❌ fetchAndFilterStations - Blocked due to force fetch debounce');
+      return;
+    }
+
+    console.log('✅ fetchAndFilterStations - Starting fetch...', {
+      forceFetch,
+      fuelType,
+      searchRadius,
+      currentSort
+    });
     setIsFetchingMore(true);
     lastFetchTime.current = now;
 
@@ -155,7 +175,7 @@ const HomeScreen = () => {
       );
       
       // Double check we're still not in search mode
-      if (!isSearchActive) {
+      if (!inSearchMode) {
         console.log('✅ fetchAndFilterStations - Updating data');
         setAllStations(data);
         setFilteredStations(data);
@@ -171,7 +191,180 @@ const HomeScreen = () => {
       setIsFetchingMore(false);
       setIsLoading(false);
     }
-  }, [searchRadius, currentSort, isFetchingMore, selectedFuelType, isSearchActive]);
+  }, [searchRadius, currentSort, isFetchingMore, selectedFuelType, inSearchMode]);
+
+  // Effect to handle location updates and initial fetch
+  useEffect(() => {
+    let isMounted = true;
+    const initialize = async () => {
+      try {
+        // Start with a default location to show UI immediately
+        const defaultLocation = {
+          coords: {
+            latitude: 38.736946,
+            longitude: -9.142685,
+            altitude: null,
+            accuracy: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null
+          },
+          timestamp: Date.now()
+        };
+        
+        // Set initial states immediately
+        setLocation(defaultLocation);
+        setIsInitialLoading(false);
+        
+        // Request location permission and get initial location in parallel
+        const [locationPermission, initialLocation] = await Promise.all([
+          Location.requestForegroundPermissionsAsync(),
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Lowest // Use lowest accuracy for fastest initial location
+          })
+        ]);
+        
+        if (!isMounted) return;
+        
+        setHasLocationPermission(locationPermission.status === 'granted');
+        
+        if (locationPermission.status !== 'granted') {
+          setErrorMsg(t('error.locationDenied'));
+          setAllStations([]);
+          setIsDataLoaded(true);
+          return;
+        }
+
+        // Update location with more accurate position
+        setLocation(initialLocation);
+
+        // Only fetch initial stations if not in search mode
+        if (!inSearchMode) {
+          // Start location subscription with low accuracy initially
+          const newLocationSubscription = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Lowest,
+              timeInterval: 10000,
+              distanceInterval: 50,
+            },
+            (newLocation) => {
+              if (!inSearchMode && isMounted) {
+                setLocation(newLocation);
+              }
+            }
+          );
+
+          if (!isMounted) {
+            newLocationSubscription.remove();
+            return;
+          }
+
+          locationSubscription.current = newLocationSubscription;
+
+          // Fetch stations
+          try {
+            const stationsData = await fetchNearbyStations<Posto[]>(
+              initialLocation.coords.latitude,
+              initialLocation.coords.longitude,
+              searchRadius * 1000,
+              selectedFuelType,
+              currentSort
+            );
+            
+            if (!isMounted) return;
+            
+            setAllStations(stationsData);
+            setFilteredStations(stationsData);
+            lastFetchTime.current = Date.now();
+            setIsDataLoaded(true);
+
+            // Center map on user location
+            if (mapRef.current) {
+              mapRef.current.animateToRegion({
+                latitude: initialLocation.coords.latitude,
+                longitude: initialLocation.coords.longitude,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+              }, 500);
+            }
+          } catch (error) {
+            console.error('Error fetching stations:', error);
+            if (isMounted) {
+              setErrorMsg(t('error.locationError'));
+              setAllStations([]);
+              setIsDataLoaded(true);
+            }
+          }
+        } else {
+          setIsDataLoaded(true);
+        }
+      } catch (error) {
+        console.error('Error initializing:', error);
+        if (isMounted) {
+          setErrorMsg(t('error.locationError'));
+          setAllStations([]);
+          setIsDataLoaded(true);
+        }
+      }
+    };
+
+    initialize();
+
+    return () => {
+      isMounted = false;
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+        locationSubscription.current = null;
+      }
+    };
+  }, [inSearchMode]);
+
+  // Effect to handle location changes and refetch
+  useEffect(() => {
+    if (location && !inSearchMode && !isFetchingMore) {
+      const now = Date.now();
+      if (now - lastFetchTime.current >= POLLING_INTERVAL) {
+        console.log('🔄 Location changed, triggering fetch');
+        fetchAndFilterStations(location.coords, false);
+      } else {
+        console.log('⏳ Location changed but polling interval not reached', {
+          timeSinceLastFetch: now - lastFetchTime.current,
+          pollingInterval: POLLING_INTERVAL
+        });
+      }
+    }
+  }, [location, inSearchMode, isFetchingMore, fetchAndFilterStations]);
+
+  // Effect to handle settings changes
+  useEffect(() => {
+    if (location && !inSearchMode) {
+      const now = Date.now();
+      // Only force fetch if enough time has passed since last fetch
+      if (now - lastFetchTime.current >= POLLING_INTERVAL) {
+        console.log('⚙️ Settings changed, forcing fetch');
+        fetchAndFilterStations(location.coords, true);
+      } else {
+        console.log('⏳ Settings changed but polling interval not reached', {
+          timeSinceLastFetch: now - lastFetchTime.current,
+          pollingInterval: POLLING_INTERVAL
+        });
+      }
+    }
+  }, [searchRadius, selectedFuelType, currentSort, location, inSearchMode, fetchAndFilterStations]);
+
+  // Effect to update selected fuel type when selectedFuelTypes changes
+  useEffect(() => {
+    if (!selectedFuelTypes.includes(selectedFuelType)) {
+      setSelectedFuelType(selectedFuelTypes[0] || 'Gasóleo simples');
+    }
+  }, [selectedFuelTypes]);
+
+  // Effect to handle dark mode changes
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', darkMode);
+    }
+  }, [darkMode]);
 
   // Memoized handlers
   const handleFuelTypeChange = useCallback((fuelType: string) => {
@@ -410,7 +603,7 @@ const HomeScreen = () => {
   // Effect to handle search state changes
   useEffect(() => {
     if (searchState) {
-      console.log('✅ Search state updated, updating stations');
+      console.log('🔍 Search state updated, updating stations');
       setAllStations(searchState.results);
       setFilteredStations(searchState.results);
       setSelectedFuelType(searchState.fuelType);
@@ -425,104 +618,7 @@ const HomeScreen = () => {
     }
   }, [searchState]);
 
-  // Effect to handle location updates
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        setIsInitialLoading(true);
-        
-        // Request location permission and get initial location in parallel
-        const [locationPermission, initialLocation] = await Promise.all([
-          Location.requestForegroundPermissionsAsync(),
-          Location.getCurrentPositionAsync({})
-        ]);
-        
-        setHasLocationPermission(locationPermission.status === 'granted');
-        setLocation(initialLocation);
-        
-        if (locationPermission.status !== 'granted') {
-          setErrorMsg(t('error.locationDenied'));
-          setAllStations([]);
-          setIsInitialLoading(false);
-          setIsDataLoaded(true);
-          return;
-        }
-
-        // Only fetch initial stations if not in search mode
-        if (!isSearchActive) {
-          // Start location subscription immediately
-          locationSubscription.current = await Location.watchPositionAsync(
-            {
-              accuracy: Location.Accuracy.High,
-              timeInterval: 10000,
-              distanceInterval: 50,
-            },
-            (newLocation) => {
-              if (!isSearchActive) {
-                setLocation(newLocation);
-              }
-            }
-          );
-
-          // Fetch stations in parallel with other operations
-          const data = await fetchNearbyStations<Posto[]>(
-            initialLocation.coords.latitude,
-            initialLocation.coords.longitude,
-            searchRadius * 1000,
-            selectedFuelType,
-            currentSort
-          );
-          
-          setAllStations(data);
-          setFilteredStations(data);
-          lastFetchTime.current = Date.now();
-          setIsDataLoaded(true);
-
-          // Center map on user location
-          if (mapRef.current) {
-            mapRef.current.animateToRegion({
-              latitude: initialLocation.coords.latitude,
-              longitude: initialLocation.coords.longitude,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            }, 1000);
-          }
-        } else {
-          setIsDataLoaded(true);
-        }
-      } catch (error) {
-        console.error('Error initializing:', error);
-        setErrorMsg(t('error.locationError'));
-        setAllStations([]);
-        setLocation({
-          coords: {
-            latitude: 38.736946,
-            longitude: -9.142685,
-            altitude: null,
-            accuracy: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: null
-          },
-          timestamp: Date.now()
-        });
-        setIsDataLoaded(true);
-      } finally {
-        setIsInitialLoading(false);
-      }
-    };
-
-    initialize();
-
-    return () => {
-      if (locationSubscription.current) {
-        locationSubscription.current.remove();
-        locationSubscription.current = null;
-      }
-    };
-  }, [isSearchActive]);
-
-  // Add map ready handler with timeout
+  // Add map ready handler with shorter timeout
   const handleMapReady = useCallback(() => {
     console.log('Map is ready');
     setIsMapReady(true);
@@ -530,11 +626,11 @@ const HomeScreen = () => {
 
   // Effect to handle map ready timeout
   useEffect(() => {
-    // Set a timeout to force map ready after 5 seconds
+    // Set a timeout to force map ready after 1 second
     mapReadyTimeout.current = setTimeout(() => {
       console.log('Map ready timeout reached');
       setIsMapReady(true);
-    }, 5000);
+    }, 1000);
 
     return () => {
       if (mapReadyTimeout.current) {
