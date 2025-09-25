@@ -142,9 +142,32 @@ export const fetchStationsByLocation = async (params: SearchParams): Promise<Pos
   }
 };
 
+export interface InfoResponse {
+  marcas: string[];
+  combustiveis: string[];
+  filtros: Array<'mais_barato' | 'mais_caro' | 'mais_perto' | 'mais_longe'>;
+}
+
+export const fetchInfo = async (): Promise<InfoResponse> => {
+  const url = `/api/info`;
+  try {
+    const response = await api.get<InfoResponse>(url, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache'
+      },
+      params: { _ts: Date.now() }
+    } as RetryConfig);
+    return response.data;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
 const apiUtils = {
   fetchNearbyStations,
   fetchStationsByLocation,
+  fetchInfo,
   api,
   ENDPOINTS,
   ERROR_MESSAGES,

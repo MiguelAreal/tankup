@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
 import { Strings } from '../types/strings';
 import fuelTypesData from './assets/fuelTypes.json';
 import locationsData from './assets/locations.json';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
+import { useAppContext } from './context/AppContext';
+import { useSearch } from './context/SearchContext';
 import { fetchStationsByLocation } from './utils/api';
 
 type District = {
@@ -20,7 +21,8 @@ type Screen = 'districts' | 'cities';
 
 export default function SearchScreen() {
   const router = useRouter();
-  const { language, selectedFuelTypes, setSearchState } = useAppContext();
+  const { language, selectedFuelTypes } = useAppContext();
+  const { setSearchState } = useSearch();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   
   const [searchQuery, setSearchQuery] = useState('');

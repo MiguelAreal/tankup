@@ -1,8 +1,8 @@
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import MapView, { Callout, Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { useAppContext } from '../../../context/AppContext';
 import { Posto } from '../../../types/models/Posto';
+import { useAppContext } from '../../context/AppContext';
 import PostoCard from '../PostoCard';
 import { MapProps } from './Map.types';
 
@@ -15,20 +15,13 @@ const Map = forwardRef<any, MapProps>(({
   searchRadius = 0,
   selectedFuelType,
   style,
-  onMapReady
+  onMapReady,
+  preferredNavigationApp
 }, ref) => {
   const { theme } = useAppContext();
   const mapRef = useRef<any>(null);
   const [isMapReady, setIsMapReady] = useState(false);
-
-  // Debug stations data
-  /*useEffect(() => {
-    console.log('Stations received:', stations);
-    if (stations.length > 0) {
-      console.log('First station coordinates:', stations[0].localizacao.coordinates);
-    }
-  }, [stations]);*/
-
+  
   // Update map position when userLocation changes
   useEffect(() => {
     if (mapRef.current && userLocation && !isSearchActive) {
@@ -127,6 +120,7 @@ const Map = forwardRef<any, MapProps>(({
                 userLocation={userLocation}
                 selectedFuelType={selectedFuelType}
                 isSelected={isSelected}
+                preferredNavigationApp={preferredNavigationApp}
               />
             </View>
           </Callout>

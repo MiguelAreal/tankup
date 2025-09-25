@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ActivityIndicator, Dimensions, ScrollView, Text, View } from 'react-native';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../context/AppContext';
 import { Posto } from '../../types/models';
 import FuelTypeSelector from './FuelTypeSelector';
 import PostoCard from './PostoCard';
@@ -14,6 +14,7 @@ type StationListProps = {
   };
   selectedFuelType: string;
   selectedStation: Posto | null;
+  preferredNavigationApp: 'google_maps' | 'waze' | 'apple_maps';
   onScroll?: (event: any) => void;
   onMeasureCardHeight?: (index: number, height: number) => void;
   scrollViewRef?: React.RefObject<ScrollView | null>;
@@ -28,6 +29,7 @@ const StationList: React.FC<StationListProps> = ({
   userLocation,
   selectedFuelType,
   selectedStation,
+  preferredNavigationApp,
   onScroll,
   onMeasureCardHeight,
   scrollViewRef,
@@ -103,6 +105,7 @@ const StationList: React.FC<StationListProps> = ({
                 userLocation={userLocation}
                 selectedFuelType={selectedFuelType}
                 isSelected={selectedStation?.id === station.id}
+                preferredNavigationApp={preferredNavigationApp}
               />
             </View>
           ))

@@ -15,6 +15,7 @@ export interface MapProps {
   center?: [number, number];
   zoom?: number;
   allowInteraction?: boolean;
+  preferredNavigationApp: 'google_maps' | 'waze' | 'apple_maps';
 }
 
 export interface UserLocation {

@@ -4,7 +4,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Animated, BackHandler, Dimensions, Easing, Platform, SafeAreaView, ScaledSize, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
 import { Posto } from '../types/models';
 import stringsEN from './assets/strings.en.json';
 import stringsPT from './assets/strings.pt.json';
@@ -14,6 +13,7 @@ import Map from './components/Map/Map';
 import ResponsiveAdBanner from './components/ResponsiveAdBanner';
 import StationList from './components/StationList';
 import StatusMessage from './components/StatusMessage';
+import { useAppContext } from './context/AppContext';
 import { useSearch } from './context/SearchContext';
 import { useInterstitialAd } from './hooks/useInterstitialAd';
 import { fetchNearbyStations, fetchStationsByLocation } from './utils/api';
@@ -23,10 +23,8 @@ type Strings = typeof stringsEN;
 const MemoizedHeader = React.memo(Header);
 const MemoizedFuelTypeSelector = React.memo(FuelTypeSelector);
 const MemoizedMap = React.memo(Map);
-const MemoizedStationList = React.memo(StationList);
 const MemoizedStatusMessage = React.memo(StatusMessage);
 
-// Add this near the top of the file, after imports
 const SearchHeader = React.memo(({ 
   searchState, 
   onClearSearch 
@@ -112,16 +110,11 @@ const HomeScreen = () => {
   // Centralize search mode logic - SINGLE SOURCE OF TRUTH
   const inSearchMode = useMemo(() => {
     const isSearching = !!searchState || params.searchType === 'location' || isSearchActive;
-    console.log('🔍 Search mode check:', { 
-      hasSearchState: !!searchState, 
-      searchType: params.searchType, 
-      isSearchActive,
-      finalResult: isSearching 
-    });
     return isSearching;
   }, [searchState, params.searchType, isSearchActive]);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isUserLocationReady, setIsUserLocationReady] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const mapReadyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -198,22 +191,7 @@ const HomeScreen = () => {
     let isMounted = true;
     const initialize = async () => {
       try {
-        // Start with a default location to show UI immediately
-        const defaultLocation = {
-          coords: {
-            latitude: 38.736946,
-            longitude: -9.142685,
-            altitude: null,
-            accuracy: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: null
-          },
-          timestamp: Date.now()
-        };
         
-        // Set initial states immediately
-        setLocation(defaultLocation);
         setIsInitialLoading(false);
         
         // Request location permission and get initial location in parallel
@@ -223,9 +201,7 @@ const HomeScreen = () => {
             accuracy: Location.Accuracy.Lowest // Use lowest accuracy for fastest initial location
           })
         ]);
-        
-        if (!isMounted) return;
-        
+                
         setHasLocationPermission(locationPermission.status === 'granted');
         
         if (locationPermission.status !== 'granted') {
@@ -237,6 +213,7 @@ const HomeScreen = () => {
 
         // Update location with more accurate position
         setLocation(initialLocation);
+        setIsUserLocationReady(true);
 
         // Only fetch initial stations if not in search mode
         if (!inSearchMode) {
@@ -261,21 +238,10 @@ const HomeScreen = () => {
 
           locationSubscription.current = newLocationSubscription;
 
-          // Fetch stations
+          // Fetch stations using unified flow and accurate user location
           try {
-            const stationsData = await fetchNearbyStations<Posto[]>(
-              initialLocation.coords.latitude,
-              initialLocation.coords.longitude,
-              searchRadius * 1000,
-              selectedFuelType,
-              currentSort
-            );
-            
+            await fetchAndFilterStations(initialLocation.coords, true);
             if (!isMounted) return;
-            
-            setAllStations(stationsData);
-            setFilteredStations(stationsData);
-            lastFetchTime.current = Date.now();
             setIsDataLoaded(true);
 
             // Center map on user location
@@ -321,7 +287,7 @@ const HomeScreen = () => {
 
   // Effect to handle location changes and refetch
   useEffect(() => {
-    if (location && !inSearchMode && !isFetchingMore) {
+    if (location && isUserLocationReady && !inSearchMode && !isFetchingMore && isMapReady) {
       const now = Date.now();
       if (now - lastFetchTime.current >= POLLING_INTERVAL) {
         console.log('🔄 Location changed, triggering fetch');
@@ -333,7 +299,7 @@ const HomeScreen = () => {
         });
       }
     }
-  }, [location, inSearchMode, isFetchingMore, fetchAndFilterStations]);
+  }, [location, isUserLocationReady, inSearchMode, isFetchingMore, fetchAndFilterStations]);
 
   // Effect to handle settings changes
   useEffect(() => {
@@ -695,60 +661,51 @@ const HomeScreen = () => {
     };
   }, []);
 
-  // Memoize the map component to prevent unnecessary re-renders
-  const mapComponent = useMemo(() => (
-    <MemoizedMap
-      ref={mapRef}
-      stations={filteredStations}
-      selectedStation={selectedStation}
-      onMarkerPress={handleMarkerPress}
-      userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
-      isSearchActive={isSearchActive}
-      searchRadius={isSearchActive ? 0 : searchRadius}
-      selectedFuelType={selectedFuelType}
-      style={dimensions.isPortrait ? undefined : { flex: 1 }}
-      onMapReady={handleMapReady}
-    />
-  ), [
-    filteredStations,
-    selectedStation,
-    handleMarkerPress,
-    location?.coords,
-    isSearchActive,
-    searchRadius,
-    selectedFuelType,
-    dimensions.isPortrait,
-    handleMapReady
-  ]);
+// Memoize the map component to prevent unnecessary re-renders
+const mapComponent = useMemo(() => (
+  <MemoizedMap
+    ref={mapRef}
+    stations={filteredStations}
+    selectedStation={selectedStation}
+    onMarkerPress={handleMarkerPress}
+    userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
+    isSearchActive={isSearchActive}
+    searchRadius={isSearchActive ? 0 : searchRadius}
+    selectedFuelType={selectedFuelType}
+    style={dimensions.isPortrait ? undefined : { flex: 1 }}
+    onMapReady={handleMapReady}
+    preferredNavigationApp={preferredNavigationApp}
+  />
+), [
+  filteredStations,
+  selectedStation,
+  handleMarkerPress,
+  location?.coords,
+  isSearchActive,
+  searchRadius,
+  selectedFuelType,
+  dimensions.isPortrait,
+  handleMapReady
+]);
 
-  // Memoize the station list component
-  const stationListComponent = useMemo(() => (
-    <MemoizedStationList
-      stations={filteredStations}
-      userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
-      selectedFuelType={selectedFuelType}
-      selectedStation={selectedStation}
-      onScroll={handleScroll}
-      onMeasureCardHeight={measureCardHeight}
-      scrollViewRef={scrollViewRef}
-      isLoading={isLoading}
-      onFuelTypeChange={!isSearchActive ? handleFuelTypeChange : undefined}
-      onSelectSort={!isSearchActive ? handleSortChange : undefined}
-      selectedSort={currentSort}
-    />
-  ), [
-    filteredStations,
-    location?.coords,
-    selectedFuelType,
-    selectedStation,
-    handleScroll,
-    measureCardHeight,
-    isLoading,
-    handleFuelTypeChange,
-    handleSortChange,
-    currentSort,
-    isSearchActive
-  ]);
+// Use StationList directly without memo
+const stationListComponent = (
+  <StationList
+    stations={filteredStations}
+    userLocation={location?.coords || { latitude: 38.736946, longitude: -9.142685 }}
+    selectedFuelType={selectedFuelType}
+    selectedStation={selectedStation}
+    preferredNavigationApp={preferredNavigationApp}
+    onScroll={handleScroll}
+    onMeasureCardHeight={measureCardHeight}
+    scrollViewRef={scrollViewRef}
+    isLoading={isLoading}
+    onFuelTypeChange={!isSearchActive ? handleFuelTypeChange : undefined}
+    onSelectSort={!isSearchActive ? handleSortChange : undefined}
+    selectedSort={currentSort}
+  />
+);
+
 
   // Memoize the portrait layout
   const portraitLayout = useMemo(() => (

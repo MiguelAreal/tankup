@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
-import { useAppContext } from '../../../context/AppContext';
+import { useAppContext } from '../../context/AppContext';
 import PostoCard from '../PostoCard';
 import { MapProps } from './Map.types';
 
@@ -37,6 +37,7 @@ const Map: React.FC<MapProps> = ({
   selectedFuelType,
   style,
   onMapReady,
+  preferredNavigationApp,
 }) => {
   const { theme } = useAppContext();
   const [mapReady, setMapReady] = useState(false);
@@ -64,18 +65,19 @@ const Map: React.FC<MapProps> = ({
           position={[lat, lng]}
           eventHandlers={{ click: () => handleMarkerPress(station) }}
         >
-          <Popup>
+          <Popup key={preferredNavigationApp} closeButton={false} className="tu-popup" autoPan={false}>
             <PostoCard
               station={station}
               userLocation={userLocation}
               selectedFuelType={selectedFuelType}
               isSelected={isSelected}
+              preferredNavigationApp={preferredNavigationApp}
             />
           </Popup>
         </Marker>
       );
     });
-  }, [stations, selectedStation, selectedFuelType, handleMarkerPress, userLocation]);
+  }, [stations, selectedStation, selectedFuelType, handleMarkerPress, userLocation, preferredNavigationApp]); 
 
   return (
     <div style={{ flex: 1, ...style }}>
@@ -102,5 +104,6 @@ const Map: React.FC<MapProps> = ({
     </div>
   );
 };
+
 
 export default Map;

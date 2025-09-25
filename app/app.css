@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities; 
+
+/* Leaflet popup: remove chrome so only PostoCard is visible */
+.tu-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+.tu-popup .leaflet-popup-content {
+  margin: 0;
+}
+.tu-popup .leaflet-popup-tip-container,
+.tu-popup .leaflet-popup-close-button {
+  display: none;
+}

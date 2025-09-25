@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, SafeAreaView, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
 import { Posto } from '../types/models';
 import PostoCard from './components/PostoCard';
+import { useAppContext } from './context/AppContext';
 import { getFavorites } from './utils/storage';
 
 export default function FavoritesScreen() {
   const router = useRouter();
-  const { theme, darkMode } = useAppContext();
+  const { theme, darkMode, preferredNavigationApp } = useAppContext();
   const [favorites, setFavorites] = useState<Posto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState({ latitude: 0, longitude: 0 });
@@ -104,6 +104,7 @@ export default function FavoritesScreen() {
                 userLocation={userLocation}
                 selectedFuelType={station.combustiveis[0]?.tipo || ''}
                 isSelected={false}
+                preferredNavigationApp={preferredNavigationApp}
               />
             ))
           )}

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Animated, Image, Linking, Platform, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '../context/AppContext';
 import { Posto } from '../../types/models/Posto';
 import stringsEN from '../assets/strings.en.json';
 import stringsPT from '../assets/strings.pt.json';
@@ -20,14 +20,19 @@ interface ExtendedPostoCardProps {
   };
   selectedFuelType: string;
   isSelected?: boolean;
+  preferredNavigationApp: 'google_maps' | 'waze' | 'apple_maps';
 }
 
+
+
 const PostoCard: React.FC<ExtendedPostoCardProps> = (props) => {
-  const { station, userLocation, selectedFuelType, isSelected } = props;
-  const { preferredNavigationApp, theme, language } = useAppContext();
+  const { station, userLocation, selectedFuelType, isSelected, preferredNavigationApp } = props;
+  const {theme, language } = useAppContext();
   const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
   const [isFavorited, setIsFavorited] = useState(false);
   const highlightAnim = React.useRef(new Animated.Value(0)).current;
+  
+
 
   useEffect(() => {
     checkFavoriteStatus();
@@ -151,10 +156,16 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = (props) => {
     }
   };
 
-  const getFuelPrice = (type: string) => {
-    const fuel = station.combustiveis.find(c => c.tipo === type);
-    return fuel ? fuel.preco : null;
-  };
+const navigationLabel = useMemo(() => {
+  console.log('Preferred Navigation App - navigationLabel in PostoCard.tsx:', preferredNavigationApp);
+  switch (preferredNavigationApp) {
+    case 'waze': return strings.station.openInWaze ?? 'Open in Waze';
+    case 'apple_maps': return strings.station.openInAppleMaps ?? 'Open in Apple Maps';
+    default: return strings.station.openInGoogleMaps ?? 'Open in Google Maps';
+  }
+}, [preferredNavigationApp, strings]);
+
+
 
   return (
     <Animated.View 
@@ -284,7 +295,7 @@ const PostoCard: React.FC<ExtendedPostoCardProps> = (props) => {
             color: theme.primary,
             marginLeft: 4
           }}>
-            {strings.station.openInGoogleMaps}
+                {navigationLabel}
           </Text>
         </TouchableOpacity>
       </View>

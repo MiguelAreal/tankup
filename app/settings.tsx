@@ -27,10 +27,10 @@ export default function SettingsScreen() {
     language,
     setLanguage,
     selectedFuelTypes,
-    setSelectedFuelTypes
+    setSelectedFuelTypes,
+    availableFuelTypes
   } = useAppContext();
   
-  const [isMapDropdownOpen, setIsMapDropdownOpen] = useState(false);
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
   const [isRadiusDropdownOpen, setIsRadiusDropdownOpen] = useState(false);
@@ -39,7 +39,6 @@ export default function SettingsScreen() {
   // Initialize dropdowns based on current values
   useEffect(() => {
     // Open the dropdowns that match the current values
-    setIsMapDropdownOpen(true);
     setIsNavDropdownOpen(true);
     setIsLangDropdownOpen(true);
     setIsRadiusDropdownOpen(true);
@@ -518,30 +517,30 @@ export default function SettingsScreen() {
               </Text>
 
               <View className="flex-row flex-wrap">
-                {fuelTypesData.types.map((type: FuelType) => (
+                {(availableFuelTypes.length ? availableFuelTypes : fuelTypesData.types.map((t:any)=>t.id)).map((id: string) => (
                   <TouchableOpacity
-                    key={type.id}
+                    key={id}
                     className={`mr-2 mb-2 p-2 px-4 rounded-lg ${
-                      selectedFuelTypes.includes(type.id)
+                      selectedFuelTypes.includes(id)
                         ? 'bg-blue-600 dark:bg-blue-500'
                         : 'bg-slate-200 dark:bg-slate-700'
                     }`}
-                    onPress={() => handleFuelTypeToggle(type.id)}
+                    onPress={() => handleFuelTypeToggle(id)}
                   >
                     <View className="flex-row items-center">
                       <Ionicons
-                        name={type.icon as any}
+                        name={(fuelTypesData.types.find((t:any)=>t.id===id)?.icon || 'water') as any}
                         size={20}
-                        color={selectedFuelTypes.includes(type.id) ? '#ffffff' : darkMode ? '#94a3b8' : '#64748b'}
+                        color={selectedFuelTypes.includes(id) ? '#ffffff' : darkMode ? '#94a3b8' : '#64748b'}
                       />
                       <Text
                         className={`ml-2 ${
-                          selectedFuelTypes.includes(type.id)
+                          selectedFuelTypes.includes(id)
                             ? 'text-white font-medium'
                             : 'text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {strings.station.fuelType[type.id as keyof typeof strings.station.fuelType]}
+                        {strings.station.fuelType[id as keyof typeof strings.station.fuelType] || id}
                       </Text>
                     </View>
                   </TouchableOpacity>

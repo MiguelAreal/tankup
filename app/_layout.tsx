@@ -24,7 +24,6 @@ const ThemeWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     // Update document class for web
     if (typeof document !== 'undefined') {
       document.documentElement.classList.toggle('dark', darkMode);
-      // Also update the body background color
       document.body.style.backgroundColor = theme.background;
       document.body.style.color = theme.text;
     }
