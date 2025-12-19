@@ -19,25 +19,31 @@ const Map = forwardRef<any, MapProps>(({
   preferredNavigationApp
 }, ref) => {
   const { theme } = useAppContext();
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<MapView>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   
-  // Update map position when userLocation changes
+  // Expor a ref interna para o pai
+  React.useImperativeHandle(ref, () => mapRef.current);
+
+  // --- Map Region Update Logic ---
   useEffect(() => {
-    if (mapRef.current && userLocation && !isSearchActive) {
+    if (mapRef.current && userLocation) {
+      // Ajusta o zoom dependendo se é pesquisa de cidade ou GPS local
+      const zoomDelta = isSearchActive ? 0.06 : 0.0421; 
+
       mapRef.current.animateToRegion({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
+        latitudeDelta: zoomDelta * 2,
+        longitudeDelta: zoomDelta,
       }, 1000);
     }
   }, [userLocation, isSearchActive]);
 
+  // --- Handlers ---
   const handleMarkerPress = useCallback((station: Posto) => {
     onMarkerPress(station);
-    // Animate to the selected station
-    if (mapRef.current && station) {
+    if (mapRef.current) {
       const [lng, lat] = station.localizacao.coordinates;
       mapRef.current.animateToRegion({
         latitude: lat,
@@ -45,11 +51,6 @@ const Map = forwardRef<any, MapProps>(({
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       }, 500);
-
-      // Scroll to the station in the list if the callback is provided
-      if (onMarkerPress) {
-        onMarkerPress(station);
-      }
     }
   }, [onMarkerPress]);
 
@@ -57,55 +58,21 @@ const Map = forwardRef<any, MapProps>(({
     onMarkerPress(null);
   }, [onMarkerPress]);
 
-  const initialRegion = useMemo(() => {
-    //console.log('Setting initial region with user location:', userLocation);
-    const region = {
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-      latitudeDelta: 0.0422,
-      longitudeDelta: 0.0221,
-    };
-    //console.log('Calculated initial region:', region);
-    return region;
-  }, [userLocation.latitude, userLocation.longitude]);
+  const handleMapReady = useCallback(() => {
+    setIsMapReady(true);
+    if (onMapReady) onMapReady();
+  }, [onMapReady]);
 
-  // Only show user location marker if not using showsUserLocation
-  const userLocationMarker = null;
-
-  const searchRadiusCircle = useMemo(() => (
-    !isSearchActive && searchRadius ? (
-      <Circle
-        center={{
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-        }}
-        radius={searchRadius * 1000}
-        strokeColor={theme.primary}
-        strokeWidth={2}
-        fillColor={`${theme.primary}20`}
-      />
-    ) : null
-  ), [userLocation.latitude, userLocation.longitude, searchRadius, isSearchActive, theme.primary]);
-
+  // --- Memoized Markers ---
   const stationMarkers = useMemo(() => {
-    //console.log('Rendering markers, isMapReady:', isMapReady);
     return stations.map((station) => {
       const [lng, lat] = station.localizacao.coordinates;
       const isSelected = selectedStation?.id === station.id;
-      /*console.log('Creating marker for station:', {
-        id: station.id,
-        coordinates: [lng, lat],
-        latitude: lat,
-        longitude: lng,
-        isMapReady: isMapReady
-      });*/
+      
       return (
         <Marker
           key={station.id}
-          coordinate={{
-            latitude: lat,
-            longitude: lng,
-          }}
+          coordinate={{ latitude: lat, longitude: lng }}
           onPress={() => handleMarkerPress(station)}
         >
           <View style={styles.markerContainer}>
@@ -127,16 +94,7 @@ const Map = forwardRef<any, MapProps>(({
         </Marker>
       );
     });
-  }, [stations, selectedFuelType, selectedStation, handleMarkerPress, userLocation, isMapReady]);
-
-  // Handle map ready
-  const handleMapReady = useCallback(() => {
-    console.log('Map component ready');
-    setIsMapReady(true);
-    if (onMapReady) {
-      onMapReady();
-    }
-  }, [onMapReady]);
+  }, [stations, selectedStation, selectedFuelType, handleMarkerPress, userLocation, preferredNavigationApp]);
 
   return (
     <View style={[styles.container, style]}>
@@ -147,25 +105,23 @@ const Map = forwardRef<any, MapProps>(({
         initialRegion={{
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
+          latitudeDelta: 0.0421,
+          longitudeDelta: 0.0421,
         }}
-        showsUserLocation={!isSearchActive}
+        showsUserLocation={!isSearchActive} // Esconde a bola azul se estivermos a ver outra cidade
         showsMyLocationButton={!isSearchActive}
         showsCompass
         showsScale
-        scrollEnabled={true}
-        zoomEnabled={true}
-        rotateEnabled={true}
-        onPress={handleMapPress}
         moveOnMarkerPress={false}
+        onPress={handleMapPress}
         onMapReady={handleMapReady}
-        loadingEnabled={true}
+        loadingEnabled
         loadingIndicatorColor={theme.primary}
         loadingBackgroundColor={theme.background}
       >
         {stationMarkers}
-        {!isSearchActive && (
+        
+        {!isSearchActive && searchRadius > 0 && (
           <Circle
             center={{
               latitude: userLocation.latitude,
@@ -183,51 +139,26 @@ const Map = forwardRef<any, MapProps>(({
 });
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
-  calloutContainer: {
-    width: 300,
-    backgroundColor: 'transparent',
-  },
-  markerContainer: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
+  calloutContainer: { width: 300 },
+  markerContainer: { width: 32, height: 32, alignItems: 'center', justifyContent: 'flex-start' },
   markerIcon: {
-    width: 24,
-    height: 24,
+    width: 24, height: 24,
     backgroundColor: 'rgb(0, 163, 82)',
-    borderWidth: 3,
-    borderColor: '#fff',
-    borderRadius: 12,
+    borderWidth: 3, borderColor: '#fff', borderRadius: 12,
     transform: [{ rotate: '-45deg' }],
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4,
   },
-  selectedMarkerIcon: {
-    backgroundColor: 'rgb(239, 68, 68)',
-  },
+  selectedMarkerIcon: { backgroundColor: 'rgb(239, 68, 68)' },
   markerDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#fff',
-    borderRadius: 4,
-    opacity: 0.8,
+    width: 8, height: 8,
+    backgroundColor: '#fff', borderRadius: 4, opacity: 0.8,
     transform: [{ rotate: '45deg' }],
   },
 });
 
 Map.displayName = 'Map';
 
-export default Map; 
+export default Map;

@@ -7,11 +7,20 @@
     "icon": "./app/assets/images/tankup_logo.png",
     "scheme": "tankup",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./app/assets/images/tankup_logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.miguelareal.tankup",
-      "buildNumber": "1.0.0"
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,11 +29,19 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.miguelareal.tankup",
+      "statusBar": {
+        "translucent": true,
+        "backgroundColor": "#00000000",
+        "style": "dark"
+      },
       "versionCode": 1,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "INTERNET"
+        "INTERNET",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "plugins": [
@@ -47,13 +64,16 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/tankup"
     },
+    "privacy": "https://your-privacy-policy-url.com",
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "6112182a-4dad-4c74-98ef-eba256eb4ffd"
       }
     },
-    "privacy": "https://your-privacy-policy-url.com"
+    "owner": "areal"
   }
 }

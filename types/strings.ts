@@ -1,3 +1,6 @@
+/**
+ * Strings interface defining the structure for localization strings.
+ */
 export interface Strings {
   station: {
     loading: string;

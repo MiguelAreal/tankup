@@ -37,6 +37,7 @@ const ThemeWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       <StatusBar
         barStyle={darkMode ? 'light-content' : 'dark-content'}
         backgroundColor={theme.background}
+        translucent={true}
       />
       {children}
     </View>

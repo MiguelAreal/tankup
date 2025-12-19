@@ -1,239 +1,159 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Animated, Image, Linking, Platform, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+// Types & Utils
 import { Posto } from '../../types/models/Posto';
-import stringsEN from '../assets/strings.en.json';
-import stringsPT from '../assets/strings.pt.json';
+import { useAppContext } from '../context/AppContext';
 import { getBrandImage } from '../utils/brandImages';
 import { calculateDistance } from '../utils/location';
+import { openNavigationApp } from '../utils/navigationHelper'; // <--- O novo utilitário
 import { isStationOpen } from '../utils/schedule';
 import { isFavorite, removeFavorite, saveFavorite } from '../utils/storage';
 
-type Strings = typeof stringsEN;
-
-interface ExtendedPostoCardProps {
+interface PostoCardProps {
   station: Posto;
-  userLocation: {
-    latitude: number;
-    longitude: number;
-  };
+  userLocation: { latitude: number; longitude: number };
   selectedFuelType: string;
   isSelected?: boolean;
   preferredNavigationApp: 'google_maps' | 'waze' | 'apple_maps';
 }
 
-
-
-const PostoCard: React.FC<ExtendedPostoCardProps> = (props) => {
+// React.memo impede re-renders se as props não mudarem (ex: scroll na lista pai)
+const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
   const { station, userLocation, selectedFuelType, isSelected, preferredNavigationApp } = props;
-  const {theme, language } = useAppContext();
-  const strings = (language === 'en' ? stringsEN : stringsPT) as Strings;
-  const [isFavorited, setIsFavorited] = useState(false);
-  const highlightAnim = React.useRef(new Animated.Value(0)).current;
   
+  const { theme } = useAppContext();
+  const { t } = useTranslation();
+  
+  const [isFavorited, setIsFavorited] = useState(false);
+  // useRef para valores que não precisam disparar re-renders
+  const highlightAnim = useRef(new Animated.Value(0)).current;
 
+  // --- Effects ---
 
   useEffect(() => {
-    checkFavoriteStatus();
+    let isActive = true;
+    const checkStatus = async () => {
+      const favStatus = await isFavorite(station.id);
+      if (isActive) setIsFavorited(favStatus);
+    };
+    checkStatus();
+    return () => { isActive = false; };
   }, [station.id]);
 
   useEffect(() => {
     if (isSelected) {
-      // Start highlight animation with a more noticeable effect
+      // Animação suave e nativa
       Animated.sequence([
-        Animated.timing(highlightAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(highlightAnim, {
-          toValue: 0.5,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(highlightAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        })
+        Animated.timing(highlightAnim, { toValue: 1, duration: 200, useNativeDriver: false }), // false pois backgroundColor não suporta native
+        Animated.timing(highlightAnim, { toValue: 0.5, duration: 300, useNativeDriver: false }),
+        Animated.timing(highlightAnim, { toValue: 0, duration: 500, useNativeDriver: false })
       ]).start();
     }
-  }, [isSelected]);
+  }, [isSelected, highlightAnim]);
 
-  const checkFavoriteStatus = async () => {
-    const favorite = await isFavorite(station.id);
-    setIsFavorited(favorite);
-  };
+  // --- Calculations (Memoized for Performance) ---
 
-  const handleFavoritePress = async () => {
+  const distance = useMemo(() => {
+    if (!station.localizacao || !userLocation.latitude) return 0;
+    return calculateDistance(
+      userLocation.latitude,
+      userLocation.longitude,
+      station.localizacao.coordinates[1],
+      station.localizacao.coordinates[0]
+    );
+  }, [userLocation.latitude, userLocation.longitude, station.localizacao]);
+
+  const selectedFuel = useMemo(() => {
+    return station.combustiveis?.find((f: { tipo: string }) => f.tipo === selectedFuelType);
+  }, [station.combustiveis, selectedFuelType]);
+
+  const isOpen = useMemo(() => {
+    return station.horario ? isStationOpen(station.horario) : false;
+  }, [station.horario]);
+
+  const navigationIconName = useMemo(() => {
+    switch (preferredNavigationApp) {
+      case 'waze': return 'car-sport';
+      case 'apple_maps': return 'map';
+      default: return 'navigate';
+    }
+  }, [preferredNavigationApp]);
+
+  // --- Handlers ---
+
+  const handleFavoritePress = useCallback(async () => {
+    // Optimistic UI Update (atualiza visualmente antes de esperar o storage)
+    setIsFavorited(prev => !prev); 
     try {
       if (isFavorited) {
         await removeFavorite(station.id);
       } else {
         await saveFavorite(station);
       }
-      setIsFavorited(!isFavorited);
     } catch (error) {
+      // Reverte se falhar
+      setIsFavorited(prev => !prev);
       console.error('Error toggling favorite:', error);
     }
-  };
+  }, [isFavorited, station]);
 
-  const isOpen = station.horario ? isStationOpen(station.horario) : false;
-  const selectedFuel = station.combustiveis?.find((f: { tipo: string }) => f.tipo === selectedFuelType);
+  const onNavigate = useCallback(() => {
+    if (station.localizacao?.coordinates) {
+      const [lng, lat] = station.localizacao.coordinates;
+      openNavigationApp(lat, lng, preferredNavigationApp);
+    }
+  }, [station.localizacao, preferredNavigationApp]);
+
+  // --- Dynamic Styles ---
   
-  const distance = station.localizacao ? calculateDistance(
-    userLocation.latitude,
-    userLocation.longitude,
-    station.localizacao.coordinates[1],
-    station.localizacao.coordinates[0]
-  ) : 0;
-
-  const handleNavigate = (station: Posto) => {
-    if (!station.localizacao || !station.localizacao.coordinates) {
-      return;
-    }
-
-    // Ensure we have valid coordinates
-    const coordinates = station.localizacao.coordinates;
-    if (!Array.isArray(coordinates) || coordinates.length !== 2) {
-      return;
-    }
-
-    // Coordinates are stored as [longitude, latitude] in the Posto type
-    const [longitude, latitude] = coordinates;
-    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-      return;
-    }
-
-    let url = '';
-    switch (preferredNavigationApp) {
-      case 'google_maps':
-        url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-        break;
-      case 'waze':
-        url = `https://waze.com/ul?ll=${latitude},${longitude}&navigate=yes`;
-        break;
-      case 'apple_maps':
-        url = `maps://app?daddr=${latitude},${longitude}`;
-        break;
-      default:
-        url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-        break;
-    }
-
-    if (url) {
-      if (Platform.OS === 'web') {
-        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-        if (newWindow) {
-          newWindow.focus();
-        }
-      } else {
-        Linking.canOpenURL(url).then((supported) => {
-          if (supported) {
-            return Linking.openURL(url);
-          } else {
-            const fallbackUrl = preferredNavigationApp === 'apple_maps'
-              ? `https://maps.apple.com/?daddr=${latitude},${longitude}`
-              : `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-            return Linking.openURL(fallbackUrl);
-          }
-        }).catch(() => {
-          Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`);
-        });
-      }
-    }
+  const containerStyle = {
+    backgroundColor: highlightAnim.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [theme.card, theme.primaryLight, theme.card]
+    }),
+    borderColor: isSelected ? theme.primary : theme.border,
+    shadowColor: theme.text, // Sombra adapta-se ao tema (preto/branco)
   };
-
-  const getNavigationIcon = () => {
-    switch (preferredNavigationApp) {
-      case 'waze':
-        return 'car-sport';
-      case 'apple_maps':
-        return 'map';
-      default:
-        return 'navigate';
-    }
-  };
-
-const navigationLabel = useMemo(() => {
-  console.log('Preferred Navigation App - navigationLabel in PostoCard.tsx:', preferredNavigationApp);
-  switch (preferredNavigationApp) {
-    case 'waze': return strings.station.openInWaze ?? 'Open in Waze';
-    case 'apple_maps': return strings.station.openInAppleMaps ?? 'Open in Apple Maps';
-    default: return strings.station.openInGoogleMaps ?? 'Open in Google Maps';
-  }
-}, [preferredNavigationApp, strings]);
-
-
 
   return (
     <Animated.View 
-      style={{
-        width: '100%',
-        marginBottom: 8,
-        padding: 16,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
-        transform: [{
-          scale: highlightAnim.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [1, 1.02, 1]
-          })
-        }],
-        backgroundColor: highlightAnim.interpolate({
-          inputRange: [0, 0.5, 1],
-          outputRange: [
-            theme.card,
-            theme.primaryLight,
-            theme.card
-          ]
-        }),
-        borderWidth: isSelected ? 2 : 1,
-        borderColor: isSelected ? theme.primary : theme.border
-      }}
+      style={[
+        styles.container, 
+        containerStyle,
+        { borderWidth: isSelected ? 2 : 1 }
+      ]}
     >
-      {/* Main row: Logo, Info */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        {/* Logo and basic info */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+      {/* --- Top Row: Brand & Info & Price --- */}
+      <View style={styles.rowBetween}>
+        <View style={styles.brandContainer}>
           <Image
             source={getBrandImage(station.marca)}
-            style={{ width: 40, height: 40, marginRight: 8 }}
+            style={styles.logo}
             resizeMode="contain"
           />
-          <View style={{ flex: 1 }}>
-            <Text style={{ 
-              fontSize: 16,
-              fontWeight: 'bold',
-              color: theme.text
-            }} numberOfLines={1}>
+          <View style={styles.infoContainer}>
+            <Text style={[styles.stationName, { color: theme.text }]} numberOfLines={1}>
               {station.nome}
             </Text>
-            <Text style={{ 
-              fontSize: 12,
-              color: theme.textSecondary
-            }}>
+            <Text style={[styles.stationBrand, { color: theme.textSecondary }]}>
               {station.marca}
             </Text>
             {station.morada && (
-              <Text style={{ 
-                fontSize: 12,
-                color: theme.textSecondary
-              }} numberOfLines={1}>
+              <Text style={[styles.stationAddress, { color: theme.textSecondary }]} numberOfLines={1}>
                 {station.morada.localidade}
               </Text>
             )}
           </View>
         </View>
 
-        {/* Right side: Favorite and Price */}
-        <View style={{ alignItems: 'flex-end' }}>
-          <TouchableOpacity onPress={handleFavoritePress}>
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity 
+            onPress={handleFavoritePress} 
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons
               name={isFavorited ? "heart" : "heart-outline"}
               size={24}
@@ -241,66 +161,120 @@ const navigationLabel = useMemo(() => {
             />
           </TouchableOpacity>
           {selectedFuel && (
-            <Text style={{ 
-              fontSize: 18,
-              fontWeight: 'bold',
-              color: theme.text,
-              marginTop: 4
-            }}>
+            <Text style={[styles.price, { color: theme.text }]}>
               {selectedFuel.preco}€
             </Text>
           )}
         </View>
       </View>
 
-      {/* Bottom row: Status, Distance, Navigation */}
-      <View style={{ 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        marginTop: 16
-      }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ 
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: isOpen ? '#22c55e' : '#ef4444',
-            marginRight: 4
-          }} />
-          <Text style={{ 
-            fontSize: 12,
-            color: theme.textSecondary
-          }}>
-            {isOpen ? strings.station.open : strings.station.closed}
+      {/* --- Bottom Row: Status & Nav --- */}
+      <View style={styles.footerRow}>
+        <View style={styles.statusContainer}>
+          <View style={[
+            styles.statusDot, 
+            { backgroundColor: isOpen ? '#22c55e' : '#ef4444' }
+          ]} />
+          <Text style={{ fontSize: 12, color: theme.textSecondary }}>
+            {isOpen ? t('station.open') : t('station.closed')}
           </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.distanceContainer}>
           <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
-          <Text style={{ 
-            color: theme.textSecondary,
-            marginLeft: 4
-          }}>
-            {distance.toFixed(1)}km
+          <Text style={{ color: theme.textSecondary, marginLeft: 4, fontSize: 12 }}>
+            {distance.toFixed(1)} km
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={() => handleNavigate(station)}
-          style={{ flexDirection: 'row', alignItems: 'center' }}
-        >
-          <Ionicons name={getNavigationIcon()} size={20} color={theme.primary} />
-          <Text style={{ 
-            color: theme.primary,
-            marginLeft: 4
-          }}>
-                {navigationLabel}
-          </Text>
+        <TouchableOpacity onPress={onNavigate} style={styles.navButton}>
+          <Ionicons name={navigationIconName} size={20} color={theme.primary} />
         </TouchableOpacity>
       </View>
     </Animated.View>
   );
-};
+});
+
+// Estilos estáticos (Performance: criados apenas uma vez)
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    marginBottom: 10,
+    padding: 16,
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  brandContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  logo: {
+    width: 42,
+    height: 42,
+    marginRight: 12,
+  },
+  infoContainer: {
+    flex: 1,
+  },
+  stationName: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  stationBrand: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  stationAddress: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  actionsContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 42,
+  },
+  price: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(150, 150, 150, 0.1)',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  distanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  navButton: {
+    padding: 4,
+  }
+});
 
 export default PostoCard;

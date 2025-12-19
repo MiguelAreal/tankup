@@ -2,11 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import fuelTypesData from '../assets/fuelTypes.json';
-import { changeLanguage } from '../i18n';
-import { Theme } from '../types/theme';
-import { fetchInfo, InfoResponse } from '../utils/api';
+import i18n from '../i18n'; // <--- Importa a instância configurada do i18next
+import { Theme } from '../interfaces/theme';
+import { InfoService } from '../network/infoService'; // Certifica-te que este ficheiro existe
+import { setItem } from '../utils/storage'; // Certifica-te que este utilitário existe
 
+// --- Constants & Types ---
 const DEFAULT_FUEL_TYPES = fuelTypesData.defaultTypes as string[];
+const DEFAULT_RADIUS = 5;
 
 const LEGACY_FUEL_TYPE_MAP: Record<string, string> = {
   gasoleo: 'Gasóleo simples',
@@ -17,26 +20,42 @@ const LEGACY_FUEL_TYPE_MAP: Record<string, string> = {
   biodiesel: 'Biodiesel B15',
 };
 
+// Keys para evitar erros de digitação ("Magic Strings")
+const STORAGE_KEYS = {
+  DARK_MODE: 'darkMode',
+  LANGUAGE: 'language',
+  RADIUS: 'searchRadius',
+  FUEL_TYPES: 'selectedFuelTypes',
+  NAV_APP: 'preferredNavigationApp',
+  MAP_PROVIDER: 'mapProvider'
+} as const;
+
 type MapProviderType = 'openstreetmap' | 'cartodb_light' | 'cartodb_dark';
+type NavigationAppType = 'google_maps' | 'waze' | 'apple_maps';
+type LanguageType = 'en' | 'pt';
 
 interface AppContextType {
+  // State
   darkMode: boolean;
-  setDarkMode: (darkMode: boolean) => Promise<void>;
-  language: 'en' | 'pt';
-  setLanguage: (language: 'en' | 'pt') => Promise<void>;
+  language: LanguageType;
   searchRadius: number;
-  setSearchRadius: (radius: number) => Promise<void>;
   selectedFuelTypes: string[];
-  setSelectedFuelTypes: (types: string[]) => Promise<void>;
-  preferredNavigationApp: 'google_maps' | 'waze' | 'apple_maps';
-  setPreferredNavigationApp: (app: 'google_maps' | 'waze' | 'apple_maps') => Promise<void>;
+  preferredNavigationApp: NavigationAppType;
   theme: Theme;
   mapProvider: MapProviderType;
-  setMapProvider: (provider: MapProviderType) => Promise<void>;
   adUnitId: string;
+  
+  // Dynamic Data
   availableFuelTypes: string[];
-  availableSorts: Array<'mais_barato' | 'mais_caro' | 'mais_perto' | 'mais_longe'>;
   availableBrands: string[];
+
+  // Actions
+  setDarkMode: (value: boolean) => Promise<void>;
+  setLanguage: (value: LanguageType) => Promise<void>;
+  setSearchRadius: (value: number) => Promise<void>;
+  setSelectedFuelTypes: (value: string[]) => Promise<void>;
+  setPreferredNavigationApp: (value: NavigationAppType) => Promise<void>;
+  setMapProvider: (value: MapProviderType) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -50,143 +69,141 @@ export const useAppContext = () => {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemColorScheme = useColorScheme();
 
-  const [darkMode, setDarkModeState] = useState(systemColorScheme === 'dark');
-  const [language, setLanguageState] = useState<'en' | 'pt'>('pt');
-  const [searchRadius, setSearchRadiusState] = useState(5);
-  const [selectedFuelTypes, setSelectedFuelTypesState] = useState<string[]>(DEFAULT_FUEL_TYPES);
-  const [preferredNavigationApp, setPreferredNavigationAppState] = useState<'google_maps' | 'waze' | 'apple_maps'>('google_maps');
-  const [mapProvider, setMapProviderState] = useState<MapProviderType>('openstreetmap');
+  // --- States ---
   const [isLoaded, setIsLoaded] = useState(false);
+  const [darkMode, setDarkModeState] = useState(systemColorScheme === 'dark');
+  const [language, setLanguageState] = useState<LanguageType>('pt');
+  const [searchRadius, setSearchRadiusState] = useState(DEFAULT_RADIUS);
+  const [selectedFuelTypes, setSelectedFuelTypesState] = useState<string[]>(DEFAULT_FUEL_TYPES);
+  const [preferredNavigationApp, setPreferredNavigationAppState] = useState<NavigationAppType>('google_maps');
+  const [mapProvider, setMapProviderState] = useState<MapProviderType>('openstreetmap');
+
+  // Data States
   const [availableFuelTypes, setAvailableFuelTypes] = useState<string[]>([]);
-  const [availableSorts, setAvailableSorts] = useState<Array<'mais_barato' | 'mais_caro' | 'mais_perto' | 'mais_longe'>>(['mais_barato','mais_caro','mais_perto','mais_longe']);
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
 
-  // Load settings from AsyncStorage
+  // --- Initialization ---
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadSettingsAndData = async () => {
       try {
+        // Dispara tudo em paralelo (Storage + API Request)
         const [
           storedDarkMode,
           storedLanguage,
           storedSearchRadius,
           storedFuelTypes,
           storedNavigationApp,
-          storedMapProvider
+          storedMapProvider,
+          apiInfo
         ] = await Promise.all([
-          AsyncStorage.getItem('darkMode'),
-          AsyncStorage.getItem('language'),
-          AsyncStorage.getItem('searchRadius'),
-          AsyncStorage.getItem('selectedFuelTypes'),
-          AsyncStorage.getItem('preferredNavigationApp'),
-          AsyncStorage.getItem('mapProvider')
+          AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
+          AsyncStorage.getItem(STORAGE_KEYS.LANGUAGE),
+          AsyncStorage.getItem(STORAGE_KEYS.RADIUS),
+          AsyncStorage.getItem(STORAGE_KEYS.FUEL_TYPES),
+          AsyncStorage.getItem(STORAGE_KEYS.NAV_APP),
+          AsyncStorage.getItem(STORAGE_KEYS.MAP_PROVIDER),
+          // API Call segura (se falhar, retorna null mas não quebra o Promise.all)
+          InfoService.getInfo().catch((err) => {
+             console.warn('Failed to fetch info:', err);
+             return null;
+          })
         ]);
 
+        // 2. Processa Settings
         if (storedDarkMode !== null) setDarkModeState(storedDarkMode === 'true');
-        if (storedLanguage !== null) {
-          setLanguageState(storedLanguage as 'en' | 'pt');
-          await changeLanguage(storedLanguage as 'en' | 'pt');
+        
+        if (storedLanguage) {
+          const lang = storedLanguage as LanguageType;
+          setLanguageState(lang);
+          await i18n.changeLanguage(lang); 
         }
+        
         if (storedSearchRadius) setSearchRadiusState(Number(storedSearchRadius));
+        
         if (storedFuelTypes) {
           try {
             const parsed: string[] = JSON.parse(storedFuelTypes);
+            // Normaliza nomes antigos se necessário
             const normalized = parsed.map((t) => LEGACY_FUEL_TYPE_MAP[t] || t);
             setSelectedFuelTypesState(normalized);
           } catch {
             setSelectedFuelTypesState(DEFAULT_FUEL_TYPES);
           }
         }
+
         if (storedNavigationApp) {
-          try {
-            const parsed = JSON.parse(storedNavigationApp);
-            setPreferredNavigationAppState(parsed as 'google_maps' | 'waze' | 'apple_maps');
-          } catch {
-            setPreferredNavigationAppState(storedNavigationApp as 'google_maps' | 'waze' | 'apple_maps');
-          }
+             try {
+                const app = storedNavigationApp.startsWith('"') 
+                   ? JSON.parse(storedNavigationApp) 
+                   : storedNavigationApp;
+                setPreferredNavigationAppState(app as NavigationAppType);
+             } catch (e) {
+                console.warn('Error parsing nav app preference', e);
+             }
         }
+
         if (storedMapProvider) setMapProviderState(storedMapProvider as MapProviderType);
-        // Fetch dynamic info (fuel types, brands, filters)
-        try {
-          const info: InfoResponse = await fetchInfo();
-          setAvailableFuelTypes(info.combustiveis || []);
-          setAvailableSorts((info.filtros || ['mais_barato','mais_caro','mais_perto','mais_longe']) as any);
-          setAvailableBrands(info.marcas || []);
-        } catch (e) {
-          // Keep defaults on error
-          setAvailableFuelTypes(fuelTypesData.types.map((t:any)=>t.id));
+
+        // 3. Processa Dados da API
+        if (apiInfo) {
+          setAvailableFuelTypes(apiInfo.combustiveis || []);
+          setAvailableBrands(apiInfo.marcas || []);
+        } else {
+          // Fallback em caso de erro na API
+          setAvailableFuelTypes(fuelTypesData.types.map((t: any) => t.id));
         }
+
       } catch (err) {
-        console.error('Error loading settings:', err);
+        console.error('CRITICAL: Error loading app settings', err);
       } finally {
         setIsLoaded(true);
       }
     };
 
-    loadSettings();
+    loadSettingsAndData();
   }, []);
 
+  // --- Side Effect para Web (Dark Mode) ---
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', darkMode);
+      document.body.style.backgroundColor = darkMode ? '#0f172a' : '#f1f5f9';
+    }
+  }, [darkMode]);
 
-  // Persist setters
+  // --- Actions (Memoized) ---  
   const setDarkMode = useCallback(async (value: boolean) => {
-    try {
-      await AsyncStorage.setItem('darkMode', value.toString());
-      setDarkModeState(value);
-      if (typeof document !== 'undefined') {
-        document.documentElement.classList.toggle('dark', value);
-        document.body.style.backgroundColor = value ? '#0f172a' : '#f1f5f9';
-      }
-    } catch (err) {
-      console.error('Error saving dark mode:', err);
-    }
+    setDarkModeState(value);
+    await setItem(STORAGE_KEYS.DARK_MODE, value.toString());
   }, []);
 
-  const setLanguage = useCallback(async (value: 'en' | 'pt') => {
-    try {
-      await AsyncStorage.setItem('language', value);
-      setLanguageState(value);
-      await changeLanguage(value);
-    } catch (err) {
-      console.error('Error saving language:', err);
-    }
+  const setLanguage = useCallback(async (value: LanguageType) => {
+    setLanguageState(value);
+    await i18n.changeLanguage(value);
+    await setItem(STORAGE_KEYS.LANGUAGE, value);
   }, []);
 
   const setSearchRadius = useCallback(async (value: number) => {
-    try {
-      await AsyncStorage.setItem('searchRadius', value.toString());
-      setSearchRadiusState(value);
-    } catch (err) {
-      console.error('Error saving search radius:', err);
-    }
+    setSearchRadiusState(value);
+    await setItem(STORAGE_KEYS.RADIUS, value.toString());
   }, []);
 
   const setSelectedFuelTypes = useCallback(async (value: string[]) => {
-    try {
-      await AsyncStorage.setItem('selectedFuelTypes', JSON.stringify(value));
-      setSelectedFuelTypesState(value);
-    } catch (err) {
-      console.error('Error saving fuel types:', err);
-    }
+    setSelectedFuelTypesState(value);
+    await setItem(STORAGE_KEYS.FUEL_TYPES, JSON.stringify(value));
   }, []);
 
-  const setPreferredNavigationApp = useCallback(async (value: 'google_maps' | 'waze' | 'apple_maps') => {
-    try {
-      console.log('Saving nav app to AsyncStorage:', value);
-      await AsyncStorage.setItem('preferredNavigationApp', value);
-      setPreferredNavigationAppState(value);
-    } catch (err) {
-      console.error('Error saving navigation app:', err);
-    }
+  const setPreferredNavigationApp = useCallback(async (value: NavigationAppType) => {
+    setPreferredNavigationAppState(value);
+    await setItem(STORAGE_KEYS.NAV_APP, value);
   }, []);
 
   const setMapProvider = useCallback(async (value: MapProviderType) => {
-    try {
-      await AsyncStorage.setItem('mapProvider', value);
-      setMapProviderState(value);
-    } catch (err) {
-      console.error('Error saving map provider:', err);
-    }
+    setMapProviderState(value);
+    await setItem(STORAGE_KEYS.MAP_PROVIDER, value);
   }, []);
 
+  // --- Theme ---
   const theme = useMemo(() => ({
     background: darkMode ? '#0f172a' : '#f1f5f9',
     card: darkMode ? '#1e293b' : '#ffffff',
@@ -203,32 +220,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     warning: darkMode ? '#f59e0b' : '#d97706',
   }), [darkMode]);
 
-
   const adUnitId = (__DEV__ ? 'ca-app-pub-3940256099942544/6300978111' : 'ca-app-pub-2077617628178689/9692584772');
 
+  // --- Context Value (Memoized to prevent re-renders) ---
+  const contextValue = useMemo(() => ({
+    darkMode,
+    setDarkMode,
+    language,
+    setLanguage,
+    searchRadius,
+    setSearchRadius,
+    selectedFuelTypes,
+    setSelectedFuelTypes,
+    preferredNavigationApp,
+    setPreferredNavigationApp,
+    mapProvider,
+    setMapProvider,
+    theme,
+    adUnitId,
+    availableFuelTypes,
+    availableBrands
+  }), [
+    darkMode, language, searchRadius, selectedFuelTypes, preferredNavigationApp, 
+    mapProvider, theme, availableFuelTypes, availableBrands,
+    setDarkMode, setLanguage, setSearchRadius, setSelectedFuelTypes, 
+    setPreferredNavigationApp, setMapProvider
+  ]);
+
   return (
-    <AppContext.Provider
-      value={{
-        darkMode,
-        setDarkMode,
-        language,
-        setLanguage,
-        searchRadius,
-        setSearchRadius,
-        selectedFuelTypes,
-        setSelectedFuelTypes,
-        preferredNavigationApp,
-        setPreferredNavigationApp,
-        mapProvider,
-        setMapProvider,
-        theme,
-        adUnitId
-        ,availableFuelTypes
-        ,availableSorts
-        ,availableBrands
-      }}
-    >
-    {isLoaded ? children : null}
+    <AppContext.Provider value={contextValue}>
+      {isLoaded ? children : null}
     </AppContext.Provider>
   );
 };

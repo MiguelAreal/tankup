@@ -10,7 +10,9 @@
     "cheapestNearby": "Cheapest nearby",
     "noStationsFound": "No stations found",
     "locationRequired": "Location permission is required to show nearby stations",
-    "useSearch": "Please use the search option to find stations",
+    "useSearch": "Please use the search option to find stations",    
+    "noLocationTitle": "Location permission is required to show nearby stations.",
+    "noLocationSubtitle": "Please use the search option to find stations.",
     "sortBy": {
       "mais_caro": "Most expensive",
       "mais_barato": "Cheapest",
@@ -50,7 +52,9 @@
     "fuelType": "Fuel Type",
     "sortBy": "Sort By",
     "search": "Search",
-    "clear": "Clear Search"
+    "clear": "Clear Search",
+    "errorFuel": "Please select a fuel type.",
+    "errorLocation": "Please select a district or city."
   },
   "status": {
     "loading": "Loading...",
@@ -60,9 +64,6 @@
     "noInternet": "No internet connection. Please check your connection and try again.",
     "error": "An error occurred. Please try again."
   },
-  "station.distance": "Distance",
-  "station.noLocationTitle": "Location permission is required to show nearby stations.",
-  "station.noLocationSubtitle": "Please use the search option to find stations.",
   "settings": {
     "title": "Settings",
     "darkMode": "Dark mode",
@@ -83,11 +84,18 @@
     "provider": "Data provided by DGEG",
     "privacy": "Privacy Policy",
     "terms": "Terms of Use",
-    "aboutText": "TankUp - Portugal Fuel station finder."
+    "aboutText": "TankUp - Portugal Fuel station finder.",
+    "selectMaxFuels": " You can select up to 6 fuel types."
   },
   "favorites": {
     "title": "Favorites",
-    "empty": "No favorite stations",
-    "addHint": "Add stations to favorites by clicking the heart icon in the station list"
+    "emptyTitle": "No favorite yet",
+    "emptyMessage": "Add stations to your favorites to see them here!"
+  },
+  "error": {
+    "locationDenied": "Location permission denied.",
+    "locationError": "Error getting location.",
+    "noInternet": "No internet connection.",
+    "searchFailed": "Search failed. Please try again."
   }
 } 

@@ -1,134 +1,161 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
-import { useAppTranslation } from '../i18n';
+import { useTranslation } from 'react-i18next';
+import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-const sortOptions = [
-  { id: 'mais_barato', icon: 'trending-down' },
-  { id: 'mais_caro', icon: 'trending-up' },
-  { id: 'mais_perto', icon: 'location' },
-  { id: 'mais_longe', icon: 'location-outline' },
-];
+// Context & Types
+import { PostoSortOption, SORT_OPTIONS_LIST } from '@/types/models/PostoSortOption';
+import { useAppContext } from '../context/AppContext';
+
+// --- Constants (Static Data) ---
+
+// Mapeamento de Ícones de Ordenação
+const SORT_ICONS: Record<PostoSortOption, keyof typeof Ionicons.glyphMap> = {
+  'mais_barato': 'trending-down',
+  'mais_caro': 'trending-up',
+  'mais_perto': 'location',
+  'mais_longe': 'location-outline',
+};
+
+// Mapeamento de Ícones de Combustível (Fallback se não vier da API)
+const FUEL_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'Gasóleo simples': 'water',
+  'Gasóleo especial': 'water-outline',
+  'Gasolina simples 95': 'speedometer',
+  'Gasolina especial 95': 'speedometer-outline',
+  'Gasolina 98': 'flame',
+  'Gasolina especial 98': 'flame-outline',
+  'Biodiesel B15': 'flash',
+  'GPL Auto': 'flash-outline',
+};
 
 type FuelTypeSelectorProps = {
   selectedFuelType: string;
   onFuelTypeChange: (fuelType: string) => void;
-  selectedSort?: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto';
-  onSelectSort?: (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => void;
+  selectedSort?: PostoSortOption;
+  onSelectSort?: (sort: PostoSortOption) => void;
 };
 
-const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = (props) => {
-  const { selectedFuelType, onFuelTypeChange, selectedSort = 'mais_barato', onSelectSort } = props;
+const FuelTypeSelector: React.FC<FuelTypeSelectorProps> = ({
+  selectedFuelType,
+  onFuelTypeChange,
+  selectedSort = 'mais_barato',
+  onSelectSort,
+}) => {
+  const { t } = useTranslation();
   const { selectedFuelTypes, theme, availableFuelTypes } = useAppContext();
-  const { t } = useAppTranslation();
+  
   const scrollRef = useRef<ScrollView>(null);
+  const currentScrollX = useRef(0); // Rastreio manual da posição do scroll sem re-renders
 
-  // Get only the fuel types that are selected in settings
-  const fuelTypes = useMemo(() => {
-    // Build a list of objects with id and a best-effort icon using local mapping
-    const iconById: Record<string, any> = {
-      'Gasóleo simples': 'water',
-      'Gasóleo especial': 'water-outline',
-      'Gasolina simples 95': 'speedometer',
-      'Gasolina especial 95': 'speedometer-outline',
-      'Gasolina 98': 'flame',
-      'Gasolina especial 98': 'flame-outline',
-      'Biodiesel B15': 'flash',
-      'GPL Auto': 'flash-outline',
-    };
-    return (availableFuelTypes.length ? availableFuelTypes : selectedFuelTypes)
+  // Memoize fuel types list processing
+  const displayFuelTypes = useMemo(() => {
+    const sourceList = availableFuelTypes.length ? availableFuelTypes : selectedFuelTypes;
+    
+    return sourceList
       .filter((id) => selectedFuelTypes.includes(id))
-      .map((id) => ({ id, icon: iconById[id] || 'water' }));
+      .map((id) => ({
+        id,
+        icon: FUEL_ICONS[id] || 'water'
+      }));
   }, [availableFuelTypes, selectedFuelTypes]);
 
-  // Ensure selectedFuelType is valid
+  // Validate selected fuel type availability
   useEffect(() => {
-    if (!selectedFuelTypes.includes(selectedFuelType)) {
-      onFuelTypeChange(selectedFuelTypes[0] || '');
+    if (selectedFuelTypes.length > 0 && !selectedFuelTypes.includes(selectedFuelType)) {
+      onFuelTypeChange(selectedFuelTypes[0]);
     }
   }, [selectedFuelTypes, selectedFuelType, onFuelTypeChange]);
 
+  // Handle Sort Cycle
   const handleSortPress = () => {
     if (!onSelectSort) return;
     
-    const currentIndex = sortOptions.findIndex(opt => opt.id === selectedSort);
-    const nextIndex = (currentIndex + 1) % sortOptions.length;
-    onSelectSort(sortOptions[nextIndex].id as any);
+    const currentIndex = SORT_OPTIONS_LIST.indexOf(selectedSort);
+    const nextIndex = (currentIndex + 1) % SORT_OPTIONS_LIST.length;
+    
+    onSelectSort(SORT_OPTIONS_LIST[nextIndex]);
+  };
+
+  // Safe Scroll Logic
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    currentScrollX.current = event.nativeEvent.contentOffset.x;
   };
 
   const scrollBy = (deltaX: number) => {
-    try {
-      (scrollRef.current as any)?.scrollTo({ x: Math.max(0, (scrollRef.current as any)?._lastX || 0) + deltaX, animated: true });
-      (scrollRef.current as any)._lastX = ((scrollRef.current as any)?._lastX || 0) + deltaX;
-    } catch {}
+    const newX = Math.max(0, currentScrollX.current + deltaX);
+    scrollRef.current?.scrollTo({ x: newX, animated: true });
   };
 
   return (
     <View style={{ backgroundColor: theme.background }} className="flex-row items-center px-4 py-1">
-      {/* Sort Icon Button */}
+      
+      {/* 1. Sort Button */}
       {onSelectSort && (
         <TouchableOpacity
           onPress={handleSortPress}
           style={{ backgroundColor: theme.card }}
-          className="items-center justify-center w-9 h-9 rounded-full mr-2"
+          className="items-center justify-center w-9 h-9 rounded-full mr-2 shadow-sm"
           accessibilityLabel={t(`station.sortBy.${selectedSort}`)}
         >
           <Ionicons
-            name={sortOptions.find(opt => opt.id === selectedSort)?.icon as any}
+            name={SORT_ICONS[selectedSort]}
             size={22}
             color={theme.primary}
           />
         </TouchableOpacity>
       )}
-      {/* Left chevron */}
+
+      {/* 2. Left Chevron */}
       <TouchableOpacity
         onPress={() => scrollBy(-160)}
         style={{ backgroundColor: theme.card }}
-        className="items-center justify-center w-8 h-8 rounded-full mr-2"
-        accessibilityLabel={t('station.sortBy.mais_barato')}
+        className="items-center justify-center w-8 h-8 rounded-full mr-2 shadow-sm"
       >
         <Ionicons name="chevron-back" size={18} color={theme.primary} />
       </TouchableOpacity>
-      {/* Fuel Types ScrollView */}
+
+      {/* 3. Fuel Types List */}
       <ScrollView
         ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         className="flex-1"
+        onScroll={handleScroll}
+        scrollEventThrottle={16} // Otimiza performance do evento de scroll
       >
-        {fuelTypes.map((type) => (
-          <TouchableOpacity
-            key={type.id}
-            style={{
-              backgroundColor: selectedFuelType === type.id ? theme.primary : theme.card
-            }}
-            className="mr-2 mb-2 p-2 px-4 rounded-lg"
-            onPress={() => onFuelTypeChange(type.id)}
-          >
-            <View className="flex-row items-center">
+        {displayFuelTypes.map((type) => {
+          const isSelected = selectedFuelType === type.id;
+          return (
+            <TouchableOpacity
+              key={type.id}
+              style={{
+                backgroundColor: isSelected ? theme.primary : theme.card
+              }}
+              className="mr-2 mb-2 p-2 px-4 rounded-lg flex-row items-center shadow-sm"
+              onPress={() => onFuelTypeChange(type.id)}
+            >
               <Ionicons
-                name={type.icon as any}
+                name={type.icon}
                 size={20}
-                color={selectedFuelType === type.id ? '#ffffff' : theme.textSecondary}
+                color={isSelected ? '#ffffff' : theme.textSecondary}
               />
               <Text
-                style={{
-                  color: selectedFuelType === type.id ? '#ffffff' : theme.text
-                }}
-                className="ml-2"
+                style={{ color: isSelected ? '#ffffff' : theme.text }}
+                className="ml-2 font-medium"
               >
-                {t(`station.fuelType.${type.id}`)}
+                {t(`station.fuelType.${type.id}`, { defaultValue: type.id })}
               </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
-      {/* Right chevron */}
+
+      {/* 4. Right Chevron */}
       <TouchableOpacity
         onPress={() => scrollBy(160)}
         style={{ backgroundColor: theme.card }}
-        className="items-center justify-center w-8 h-8 rounded-full ml-2"
+        className="items-center justify-center w-8 h-8 rounded-full ml-2 shadow-sm"
       >
         <Ionicons name="chevron-forward" size={18} color={theme.primary} />
       </TouchableOpacity>

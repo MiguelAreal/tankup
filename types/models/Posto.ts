@@ -1,3 +1,6 @@
+/**
+ * Posto interface defining the structure of a gas station object.
+ */
 export interface Posto {
   id: string;
   nome: string;
@@ -7,7 +10,7 @@ export interface Posto {
     localidade: string;
   };
   localizacao: {
-    coordinates: [number, number]; // [longitude, latitude]
+    coordinates: [number, number];
   };
   horario: {
     [key: string]: {
