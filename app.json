@@ -29,20 +29,12 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.miguelareal.tankup",
+      "versionCode": 1,
       "statusBar": {
         "translucent": true,
         "backgroundColor": "#00000000",
         "style": "dark"
-      },
-      "versionCode": 1,
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "INTERNET",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      }
     },
     "plugins": [
       "expo-router",
@@ -61,13 +53,13 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow TankUp to use your location to find nearby gas stations."
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,
       "baseUrl": "/tankup"
     },
-    "privacy": "https://your-privacy-policy-url.com",
     "extra": {
       "router": {},
       "eas": {
