@@ -1,0 +1,18 @@
+version: '3.8'
+
+networks:
+  web_network:
+    external: true
+
+services:
+  tankup-web:
+    build:
+      context: .
+      args:
+        - EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
+    container_name: tankup-web
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - web_network
