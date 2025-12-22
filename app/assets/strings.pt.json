@@ -85,7 +85,11 @@
     "privacy": "Política de Privacidade",
     "terms": "Termos de Uso",
     "aboutText": "TankUp - Localizador de postos de combustível em Portugal.",
-    "selectMaxFuels": " Pode selecionar até 6 tipos de combustível."
+    "selectMaxFuels": " Pode selecionar até 6 tipos de combustível.",    
+    "excludedBrands": "Marcas Excluídas",
+    "excludedBrandsDesc": "Selecione marcas que nunca quer ver.",
+    "hidden": "Ocultas",
+    "selected": "Selected"
   },
   "favorites": {
     "title": "Favoritos",

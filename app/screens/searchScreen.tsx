@@ -8,7 +8,7 @@ import { ActivityIndicator, SafeAreaView, ScrollView, Text, TextInput, Touchable
 import { PriceSortOption, SORT_OPTIONS_LIST } from '@/types/models/PostoSortOption';
 import fuelTypesData from '../assets/fuelTypes.json';
 import locationsData from '../assets/locations.json';
-import { BottomModal, FilterButton, ListItem } from '../components/search'; // Importação limpa
+import { BottomModal, FilterButton, ListItem } from '../components/search';
 import { useAppContext } from '../context/AppContext';
 import { useSearch } from '../context/SearchContext';
 import { StationService } from '../network/stationService';
@@ -21,7 +21,7 @@ type ScreenMode = 'districts' | 'cities';
 export default function SearchScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { selectedFuelTypes, theme } = useAppContext();
+  const { selectedFuelTypes, theme, excludedBrands } = useAppContext(); // <--- NOVO: Importar excludedBrands
   const { setSearchState } = useSearch();
 
   // State
@@ -107,8 +107,14 @@ export default function SearchScreen() {
         sortBy: selectedSort
       });
       
+      // --- NOVO FILTRO DE EXCLUSÃO ---
+      const filteredResults = results.filter(
+        station => !excludedBrands.includes(station.marca)
+      );
+      // -------------------------------
+
       setSearchState({
-        results,
+        results: filteredResults, // Guarda apenas os filtrados
         searchType: 'location',
         distrito: selectedDistrict?.name,
         municipio: selectedCity || undefined,

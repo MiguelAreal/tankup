@@ -45,7 +45,7 @@ const HomeScreen = () => {
 
   // --- Refs ---
   const mapHeight = useRef(new Animated.Value(0.40)).current;
-  const currentMapHeight = useRef(0.40); // <--- A ref problemática (agora garantida)
+  const currentMapHeight = useRef(0.40);
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const mapRef = useRef<any>(null);
@@ -64,7 +64,8 @@ const HomeScreen = () => {
     searchRadius, 
     selectedFuelTypes, 
     preferredNavigationApp,
-    theme
+    theme,
+    excludedBrands // <--- NOVO: Importar marcas excluídas
   } = useAppContext();
 
   const { searchState, clearSearch: clearSearchContext, isSearchActive, setSearchState } = useSearch();
@@ -97,6 +98,24 @@ const HomeScreen = () => {
   const inSearchMode = useMemo(() => {
     return !!searchState || params.searchType === 'location' || isSearchActive;
   }, [searchState, params.searchType, isSearchActive]);
+
+  // --- NOVA LÓGICA DE FILTRAGEM ---
+  // Este Effect corre sempre que os dados (allStations) ou as definições (excludedBrands) mudam
+  useEffect(() => {
+    if (allStations.length > 0) {
+      const filtered = allStations.filter(station => {
+        // Se a marca estiver na lista negra, remove
+        if (excludedBrands.includes(station.marca)) {
+          return false;
+        }
+        return true;
+      });
+      setFilteredStations(filtered);
+    } else {
+      setFilteredStations([]);
+    }
+  }, [allStations, excludedBrands]);
+  // --------------------------------
 
   const stopLocationUpdates = useCallback(() => {
     if (locationSubscription.current) {
@@ -141,13 +160,12 @@ const HomeScreen = () => {
       // Atualiza o estado se não estiver em pesquisa OU se estiver a limpar
       if (!inSearchMode || isClearingSearch) {
         setAllStations(data);
-        setFilteredStations(data);
+        // O setFilteredStations será tratado pelo useEffect acima
       }
     } catch (error) {
       console.error('Fetch error:', error);
       setErrorMsg(t('error.noInternet'));
       setAllStations([]);
-      setFilteredStations([]);
     } finally {
       setIsFetchingMore(false);
     }
@@ -163,7 +181,7 @@ const HomeScreen = () => {
 
     setSelectedFuelType(fuelType);
     setIsLoading(true); 
-    setFilteredStations([]);
+    // setFilteredStations([]); // Deixamos o effect tratar disto
 
     if (location) {
       fetchAndFilterStations(location.coords, true, fuelType).finally(() => {
@@ -189,7 +207,7 @@ const HomeScreen = () => {
       })
       .then((data) => {
         setAllStations(data);
-        setFilteredStations(data);
+        // O useEffect tratará do filteredStations
       })
       .catch(() => setErrorMsg(t('error.noInternet')))
       .finally(() => setIsLoading(false));
@@ -198,7 +216,7 @@ const HomeScreen = () => {
 
     if (location) {
       setIsLoading(true);
-      setFilteredStations([]);
+      // setFilteredStations([]); // Deixamos o effect tratar disto
       setCurrentSort(sort);
 
       StationService.getNearby({
@@ -210,7 +228,6 @@ const HomeScreen = () => {
       })
       .then((data) => {
         setAllStations(data);
-        setFilteredStations(data);
       })
       .catch(() => setErrorMsg(t('error.noInternet')))
       .finally(() => setIsLoading(false));
@@ -235,7 +252,7 @@ const HomeScreen = () => {
       );
 
       await fetchAndFilterStations(initialLoc.coords, true, undefined, true);    
-         
+          
       if (mapRef.current) {
         mapRef.current.animateToRegion({
           latitude: initialLoc.coords.latitude,
@@ -265,7 +282,7 @@ const HomeScreen = () => {
           stopLocationUpdates();
           
           setAllStations(searchState.results);
-          setFilteredStations(searchState.results);
+          // setFilteredStations(searchState.results); // O effect trata disto
           setSelectedFuelType(searchState.fuelType);
           setCurrentSort(searchState.sortBy as PostoSortOption);
           
@@ -370,18 +387,17 @@ const HomeScreen = () => {
     const offsetY = event.nativeEvent.contentOffset.y;
     const newMapHeight = offsetY > 30 ? 0.60 : 0.40;
     
-    // AQUI estava o erro: currentMapHeight.current
     if (Math.abs(currentMapHeight.current - newMapHeight) > 0.01) {
       if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
       scrollTimeout.current = setTimeout(() => {
         isAnimating.current = true;
-        currentMapHeight.current = newMapHeight; // Uso correto
+        currentMapHeight.current = newMapHeight;
         Animated.timing(mapHeight, {
           toValue: newMapHeight, duration: 150, easing: Easing.out(Easing.ease), useNativeDriver: false
         }).start(() => { isAnimating.current = false; });
       }, 100);
     }
-  }, [mapHeight]); // Dependências
+  }, [mapHeight]);
 
   const handleMarkerPress = useCallback((station: Posto | null) => {
     setSelectedStation(station);
@@ -389,7 +405,6 @@ const HomeScreen = () => {
       const idx = filteredStations.findIndex(s => s.id === station.id);
       if (idx !== -1) {
         const totalHeight = cardHeights.current.slice(0, idx).reduce((sum, h) => sum + h, 0);
-        // Ajuste no cálculo de scroll: height * (1 - mapa)
         const targetMapH = 0.60;
         
         if (currentMapHeight.current < targetMapH) {
@@ -451,14 +466,14 @@ const HomeScreen = () => {
   }
 
   if (errorMsg === t('error.noInternet')) {
-     return (
-       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
-         <Text style={{ color: theme.text, fontSize: 20, marginBottom: 8 }}>{t('error.noInternet')}</Text>
-         <TouchableOpacity onPress={() => BackHandler.exitApp()} style={{ backgroundColor: theme.primary, padding: 12, borderRadius: 8 }}>
-           <Text style={{ color: 'white' }}>{t('common.exit')}</Text>
-         </TouchableOpacity>
-       </SafeAreaView>
-     );
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <Text style={{ color: theme.text, fontSize: 20, marginBottom: 8 }}>{t('error.noInternet')}</Text>
+          <TouchableOpacity onPress={() => BackHandler.exitApp()} style={{ backgroundColor: theme.primary, padding: 12, borderRadius: 8 }}>
+            <Text style={{ color: 'white' }}>{t('common.exit')}</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      );
   }
 
   return (

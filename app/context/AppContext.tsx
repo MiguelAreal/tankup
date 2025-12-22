@@ -27,7 +27,8 @@ const STORAGE_KEYS = {
   RADIUS: 'searchRadius',
   FUEL_TYPES: 'selectedFuelTypes',
   NAV_APP: 'preferredNavigationApp',
-  MAP_PROVIDER: 'mapProvider'
+  MAP_PROVIDER: 'mapProvider',
+  EXCLUDED_BRANDS: 'excludedBrands'
 } as const;
 
 type MapProviderType = 'openstreetmap' | 'cartodb_light' | 'cartodb_dark';
@@ -43,7 +44,9 @@ interface AppContextType {
   preferredNavigationApp: NavigationAppType;
   theme: Theme;
   mapProvider: MapProviderType;
+  excludedBrands: string[];
   adUnitId: string;
+
   
   // Dynamic Data
   availableFuelTypes: string[];
@@ -56,6 +59,7 @@ interface AppContextType {
   setSelectedFuelTypes: (value: string[]) => Promise<void>;
   setPreferredNavigationApp: (value: NavigationAppType) => Promise<void>;
   setMapProvider: (value: MapProviderType) => Promise<void>;
+  toggleExcludedBrand: (brand: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -77,6 +81,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedFuelTypes, setSelectedFuelTypesState] = useState<string[]>(DEFAULT_FUEL_TYPES);
   const [preferredNavigationApp, setPreferredNavigationAppState] = useState<NavigationAppType>('google_maps');
   const [mapProvider, setMapProviderState] = useState<MapProviderType>('openstreetmap');
+  const [excludedBrands, setExcludedBrandsState] = useState<string[]>([]);
 
   // Data States
   const [availableFuelTypes, setAvailableFuelTypes] = useState<string[]>([]);
@@ -94,6 +99,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           storedFuelTypes,
           storedNavigationApp,
           storedMapProvider,
+          storedExcludedBrands,
           apiInfo
         ] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
@@ -102,6 +108,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           AsyncStorage.getItem(STORAGE_KEYS.FUEL_TYPES),
           AsyncStorage.getItem(STORAGE_KEYS.NAV_APP),
           AsyncStorage.getItem(STORAGE_KEYS.MAP_PROVIDER),
+          AsyncStorage.getItem(STORAGE_KEYS.EXCLUDED_BRANDS),
           // API Call segura (se falhar, retorna null mas não quebra o Promise.all)
           InfoService.getInfo().catch((err) => {
              console.warn('Failed to fetch info:', err);
@@ -143,6 +150,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         if (storedMapProvider) setMapProviderState(storedMapProvider as MapProviderType);
+
+        if (storedExcludedBrands) {
+          try {
+            setExcludedBrandsState(JSON.parse(storedExcludedBrands));
+          } catch {
+            setExcludedBrandsState([]);
+          }
+        }
 
         // 3. Processa Dados da API
         if (apiInfo) {
@@ -198,6 +213,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await setItem(STORAGE_KEYS.NAV_APP, value);
   }, []);
 
+  const toggleExcludedBrand = useCallback(async (brand: string) => {
+    setExcludedBrandsState((prev) => {
+      const newExcluded = prev.includes(brand)
+        ? prev.filter((b) => b !== brand)
+        : [...prev, brand];
+      
+      // Persiste no storage
+      setItem(STORAGE_KEYS.EXCLUDED_BRANDS, JSON.stringify(newExcluded));
+      return newExcluded;
+    });
+  }, []);
+
   const setMapProvider = useCallback(async (value: MapProviderType) => {
     setMapProviderState(value);
     await setItem(STORAGE_KEYS.MAP_PROVIDER, value);
@@ -236,6 +263,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPreferredNavigationApp,
     mapProvider,
     setMapProvider,
+    excludedBrands,
+    toggleExcludedBrand,
     theme,
     adUnitId,
     availableFuelTypes,
@@ -244,7 +273,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     darkMode, language, searchRadius, selectedFuelTypes, preferredNavigationApp, 
     mapProvider, theme, availableFuelTypes, availableBrands,
     setDarkMode, setLanguage, setSearchRadius, setSelectedFuelTypes, 
-    setPreferredNavigationApp, setMapProvider
+    setPreferredNavigationApp, setMapProvider,excludedBrands, toggleExcludedBrand
   ]);
 
   return (

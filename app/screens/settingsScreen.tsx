@@ -13,6 +13,8 @@ type DropdownState = {
   nav: boolean;
   lang: boolean;
   radius: boolean;
+  brands: boolean;
+  fuel: boolean; // <--- 1. Novo estado para os combustíveis
 };
 
 export default function SettingsScreen() {
@@ -26,13 +28,18 @@ export default function SettingsScreen() {
     searchRadius, setSearchRadius,
     language, setLanguage,
     selectedFuelTypes, setSelectedFuelTypes,
-    availableFuelTypes
+    availableFuelTypes,
+    availableBrands,
+    excludedBrands,
+    toggleExcludedBrand
   } = useAppContext();
   
   const [dropdowns, setDropdowns] = useState<DropdownState>({
     nav: true,
     lang: true,
     radius: true,
+    brands: false,
+    fuel: false // <--- Inicia fechado para manter o ecrã limpo
   });
 
   const toggleDropdown = (key: keyof DropdownState) => {
@@ -203,53 +210,110 @@ export default function SettingsScreen() {
             )}
           </SettingsSection>
 
-          {/* 5. Fuel Types */}
+          {/* 5. Fuel Types (AGORA COLAPSÁVEL) */}
           <SettingsSection theme={theme}>
-            <View className="mb-4">
-              <SettingsRow icon="water" label={t('settings.fuelType')} theme={theme} />
-              <Text className="mt-2 text-sm leading-5" style={{ color: theme.textSecondary || theme.text, opacity: 0.8 }}>
-                {/* Certifica-te que adicionas esta chave ao teu JSON! */}
-                {t('settings.selectMaxFuels', { count: 6, defaultValue: 'Select up to 6 fuel types to display.' })}
+            <SettingsRow 
+              icon="water" 
+              label={t('settings.fuelType')} 
+              // Mostra quantos estão selecionados quando fechado
+              value={`${selectedFuelTypes.length} ${t('settings.selected', { defaultValue: 'selecionados'})}`}
+              isOpen={dropdowns.fuel}
+              onPress={() => toggleDropdown('fuel')}
+              showChevron
+              theme={theme} 
+            />
+
+            {dropdowns.fuel && (
+              <View className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <Text className="mb-3 text-sm leading-5" style={{ color: theme.textSecondary || theme.text, opacity: 0.8 }}>
+                  {t('settings.selectMaxFuels', { count: 6, defaultValue: 'Select up to 6 fuel types to display.' })}
+                </Text>
+
+                <View className="flex-row flex-wrap -mx-1">
+                  {(availableFuelTypes.length ? availableFuelTypes : fuelTypesData.types.map((t: any) => t.id)).map((id: string) => {
+                    const isActive = selectedFuelTypes.includes(id);
+                    const iconName = (fuelTypesData.types.find((t: any) => t.id === id)?.icon || 'water') as any;
+                    const label = t(`station.fuelType.${id}`, { defaultValue: id });
+
+                    return (
+                      <TouchableOpacity
+                        key={id}
+                        onPress={() => handleFuelTypeToggle(id)}
+                        className="flex-row items-center p-2 px-3 m-1 rounded-lg border"
+                        style={{ 
+                          backgroundColor: isActive ? theme.primary : 'transparent',
+                          borderColor: isActive ? theme.primary : (darkMode ? '#334155' : '#e2e8f0'),
+                        }}
+                      >
+                        <Ionicons 
+                          name={iconName} 
+                          size={18} 
+                          color={isActive ? '#ffffff' : theme.text} 
+                        />
+                        <Text 
+                          className="ml-2 text-sm font-medium" 
+                          style={{ color: isActive ? '#ffffff' : theme.text }}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+          </SettingsSection>
+
+          {/* 6. EXCLUDED BRANDS */}
+          <SettingsSection theme={theme}>
+            <View className="mb-2">
+              <SettingsRow 
+                icon="eye-off"
+                label={t('settings.excludedBrands', { defaultValue: 'Marcas Ignoradas' })}
+                value={excludedBrands.length > 0 ? `${excludedBrands.length} ${t('settings.hidden', { defaultValue: 'ocultas'})}` : undefined}
+                isOpen={dropdowns.brands}
+                onPress={() => toggleDropdown('brands')}
+                showChevron
+                theme={theme}
+              />
+              <Text className="mt-1 text-sm leading-5" style={{ color: theme.textSecondary || theme.text, opacity: 0.8 }}>
+                {t('settings.excludedBrandsDesc', { defaultValue: 'Ative as marcas que não deseja ver no mapa ou na lista.' })}
               </Text>
             </View>
 
-            <View className="flex-row flex-wrap -mx-1">
-              {(availableFuelTypes.length ? availableFuelTypes : fuelTypesData.types.map((t: any) => t.id)).map((id: string) => {
-                const isActive = selectedFuelTypes.includes(id);
-                const iconName = (fuelTypesData.types.find((t: any) => t.id === id)?.icon || 'water') as any;
-                
-                // Tradução dinâmica da label do combustível
-                // Ex: "station.fuelType.gasoleo"
-                const label = t(`station.fuelType.${id}`, { defaultValue: id });
-
-                return (
-                  <TouchableOpacity
-                    key={id}
-                    onPress={() => handleFuelTypeToggle(id)}
-                    className="flex-row items-center p-2 px-3 m-1 rounded-lg border"
-                    style={{ 
-                      backgroundColor: isActive ? theme.primary : 'transparent',
-                      borderColor: isActive ? theme.primary : (darkMode ? '#334155' : '#e2e8f0'),
-                    }}
-                  >
-                    <Ionicons 
-                      name={iconName} 
-                      size={18} 
-                      color={isActive ? '#ffffff' : theme.text} 
-                    />
-                    <Text 
-                      className="ml-2 text-sm font-medium" 
-                      style={{ color: isActive ? '#ffffff' : theme.text }}
-                    >
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {dropdowns.brands && (
+              <View className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                {availableBrands.length === 0 ? (
+                  <Text style={{ color: theme.textSecondary }} className="py-2 italic">
+                    {t('settings.noBrandsAvailable', { defaultValue: 'A carregar marcas...' })}
+                  </Text>
+                ) : (
+                  availableBrands.map((brand) => {
+                    const isExcluded = excludedBrands.includes(brand);
+                    
+                    return (
+                      <View 
+                        key={brand} 
+                        className="flex-row items-center justify-between py-3 border-b border-slate-50 dark:border-slate-800 last:border-0"
+                      >
+                        <Text style={{ color: theme.text, flex: 1 }} className="font-medium">
+                          {brand}
+                        </Text>
+                        <Switch
+                          value={isExcluded}
+                          onValueChange={() => toggleExcludedBrand(brand)}
+                          trackColor={{ false: '#d1d5db', true: theme.error || '#ef4444' }}
+                          thumbColor={'#ffffff'}
+                        />
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            )}
           </SettingsSection>
 
-          {/* 6. About */}
+          {/* 7. About */}
           <SettingsSection theme={theme} className="mb-10">
             <SettingsRow icon="information-circle" label={t('settings.about')} theme={theme} />
             <View className="mt-4 pl-11"> 

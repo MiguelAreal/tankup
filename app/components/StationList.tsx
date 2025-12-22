@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, Dimensions, ScrollView, Text, View } from 'react-native';
-import { useAppContext } from '../context/AppContext';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Posto } from '../../types/models';
+import { PostoSortOption } from '../../types/models/PostoSortOption';
+import { useAppContext } from '../context/AppContext';
 import FuelTypeSelector from './FuelTypeSelector';
 import PostoCard from './PostoCard';
 
@@ -20,8 +21,8 @@ type StationListProps = {
   scrollViewRef?: React.RefObject<ScrollView | null>;
   isLoading?: boolean;
   onFuelTypeChange?: (fuelType: string) => void;
-  onSelectSort?: (sort: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto') => void;
-  selectedSort?: 'mais_caro' | 'mais_barato' | 'mais_longe' | 'mais_perto';
+  onSelectSort?: (sort: PostoSortOption) => void;
+  selectedSort?: PostoSortOption;
 };
 
 const StationList: React.FC<StationListProps> = ({
@@ -39,15 +40,13 @@ const StationList: React.FC<StationListProps> = ({
   selectedSort,
 }) => {
   const { theme } = useAppContext();
-  const dimensions = Dimensions.get('window');
-  const isPortrait = dimensions.height >= dimensions.width;
-
+  
   if (isLoading) {
     return (
       <View style={{ backgroundColor: theme.background }} className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={{ color: theme.textSecondary }} className="mt-4">
-          Loading stations...
+          A carregar postos...
         </Text>
       </View>
     );
@@ -55,30 +54,37 @@ const StationList: React.FC<StationListProps> = ({
 
   return (
     <View style={{ backgroundColor: theme.background, flex: 1 }}>
+      {/* Selector e Filtros */}
       {onFuelTypeChange && onSelectSort && selectedSort && (
-        <FuelTypeSelector
-          selectedFuelType={selectedFuelType}
-          onFuelTypeChange={onFuelTypeChange}
-          selectedSort={selectedSort}
-          onSelectSort={onSelectSort}
-        />
+        <View style={{ zIndex: 10 }}>
+            <FuelTypeSelector
+            selectedFuelType={selectedFuelType}
+            onFuelTypeChange={onFuelTypeChange}
+            selectedSort={selectedSort}
+            onSelectSort={onSelectSort}
+            />
+        </View>
       )}
+
+      {/* Lista de Postos */}
       <ScrollView
         ref={scrollViewRef}
-        style={{ 
-          backgroundColor: theme.background,
-          flex: 1
+        style={{ flex: 1 }}
+        contentContainerStyle={{ 
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: 32
         }}
         onScroll={onScroll}
         scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
       >
         {stations.length === 0 ? (
           <View style={{ 
             flex: 1, 
             alignItems: 'center', 
             justifyContent: 'center', 
-            padding: 16,
-            backgroundColor: theme.background
+            marginTop: 60
           }}>
             <Ionicons name="alert-circle-outline" size={48} color={theme.textSecondary} />
             <Text style={{ 
@@ -86,14 +92,13 @@ const StationList: React.FC<StationListProps> = ({
               marginTop: 16,
               textAlign: 'center'
             }}>
-              No stations found in your area
+              Não foram encontrados postos nesta área.
             </Text>
           </View>
         ) : (
           stations.map((station, index) => (
             <View
               key={station.id}
-              style={{ backgroundColor: theme.background }}
               onLayout={(event) => {
                 if (onMeasureCardHeight) {
                   onMeasureCardHeight(index, event.nativeEvent.layout.height);
@@ -115,4 +120,4 @@ const StationList: React.FC<StationListProps> = ({
   );
 };
 
-export default StationList; 
+export default StationList;

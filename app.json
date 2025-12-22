@@ -64,8 +64,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "baseUrl": "/tankup"
+      "typedRoutes": true
     },
     "privacy": "https://your-privacy-policy-url.com",
     "extra": {

@@ -85,7 +85,11 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Use",
     "aboutText": "TankUp - Portugal Fuel station finder.",
-    "selectMaxFuels": " You can select up to 6 fuel types."
+    "selectMaxFuels": " You can select up to 6 fuel types.",
+    "excludedBrands": "Excluded Brands",
+    "excludedBrandsDesc": "Select brands you never want to see.",
+    "hidden": "Hidden",
+    "selected": "Selected"
   },
   "favorites": {
     "title": "Favorites",
