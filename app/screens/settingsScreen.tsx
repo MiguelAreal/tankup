@@ -7,6 +7,7 @@ import { Linking, Platform, SafeAreaView, ScrollView, StatusBar, Switch, Text, T
 import fuelTypesData from '../assets/fuelTypes.json';
 import { OptionItem, SettingsRow, SettingsSection } from '../components/settings';
 import { useAppContext } from '../context/AppContext';
+import { getCurrentVersion } from '../utils/versionCheck';
 
 // Types
 type DropdownState = {
@@ -14,12 +15,12 @@ type DropdownState = {
   lang: boolean;
   radius: boolean;
   brands: boolean;
-  fuel: boolean; // <--- 1. Novo estado para os combustíveis
+  fuel: boolean;
 };
 
 export default function SettingsScreen() {
   const router = useRouter();
-  
+  const appVersion = getCurrentVersion();
   const { t } = useTranslation(); 
 
   const { 
@@ -322,7 +323,7 @@ export default function SettingsScreen() {
               </Text>
               
               <Text className="text-sm font-semibold mb-4" style={{ color: theme.textSecondary || theme.text }}>
-                {t('settings.version')}: 1.0.0
+                {t('settings.version')}: {appVersion}
               </Text>
 
               <View className="gap-y-3">

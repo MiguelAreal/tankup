@@ -14,7 +14,8 @@
   export const ENDPOINTS = {
     nearby: '/api/stations/nearby',
     byLocation: '/api/stations/by-location',
-    info: '/api/info',
+    info: '/api/info/types',
+    sysversions: '/api/info/sysversions',
   } as const;
 
   // API Error Messages

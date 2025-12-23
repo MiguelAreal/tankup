@@ -2,10 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import fuelTypesData from '../assets/fuelTypes.json';
-import i18n from '../i18n'; // <--- Importa a instância configurada do i18next
+import i18n from '../i18n';
 import { Theme } from '../interfaces/theme';
-import { InfoService } from '../network/infoService'; // Certifica-te que este ficheiro existe
-import { setItem } from '../utils/storage'; // Certifica-te que este utilitário existe
+import { InfoService } from '../network/infoService';
+import { setItem } from '../utils/storage';
 
 // --- Constants & Types ---
 const DEFAULT_FUEL_TYPES = fuelTypesData.defaultTypes as string[];
