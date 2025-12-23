@@ -10,9 +10,12 @@
     "cheapestNearby": "Cheapest nearby",
     "noStationsFound": "No stations found",
     "locationRequired": "Location permission is required to show nearby stations",
-    "useSearch": "Please use the search option to find stations",    
+    "useSearch": "Please use the search option to find stations",
     "noLocationTitle": "Location permission is required to show nearby stations.",
     "noLocationSubtitle": "Please use the search option to find stations.",
+    "detailsTitle": "Station Details",
+    "priceHistory": "Price History",
+    "noHistoryData": "No history available for this period.",
     "sortBy": {
       "mais_caro": "Most expensive",
       "mais_barato": "Cheapest",
@@ -42,6 +45,24 @@
     "open": "Open",
     "closed": "Closed",
     "opensAt": "Opens at"
+  },
+  "schedule": {
+    "title": "Schedule",
+    "days": {
+      "weekdays": "Mon - Fri",
+      "saturday": "Saturday",
+      "sunday": "Sunday",
+      "holiday": "Holidays"
+    },
+    "status": {
+      "open": "Open now",
+      "open24h": "Open 24h",
+      "closed": "Closed",
+      "closingSoon": "Closes in {{count}} min",
+      "unavailable": "Unavailable",
+      "noInfo": "Schedule not available",
+      "sourceError": "Schedule unavailable from official source."
+    }
   },
   "search": {
     "title": "Search",
@@ -89,7 +110,8 @@
     "excludedBrands": "Excluded Brands",
     "excludedBrandsDesc": "Select brands you never want to see.",
     "hidden": "Hidden",
-    "selected": "Selected"
+    "selected": "Selected",
+    "noBrandsAvailable": "Loading brands..."
   },
   "favorites": {
     "title": "Favorites",
@@ -101,5 +123,14 @@
     "locationError": "Error getting location.",
     "noInternet": "No internet connection.",
     "searchFailed": "Search failed. Please try again."
+  },
+  "time": {
+    "days_one": "{{count}} Day",
+    "days_other": "{{count}} Days",
+    "months_one": "{{count}} Month",
+    "months_other": "{{count}} Months"
+  },
+  "common": {
+    "exit": "Exit App"
   }
-} 
+}

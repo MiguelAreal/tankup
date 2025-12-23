@@ -2,17 +2,20 @@
   "station": {
     "loading": "A carregar...",
     "distance": "Km de distância",
-    "notAvailable": "Não disponível",
+    "notAvailable": "Indisponível",
     "goodPrice": "Bom preço",
     "openInGoogleMaps": "Abrir no Google Maps",
     "openInWaze": "Abrir no Waze",
     "openInAppleMaps": "Abrir no Apple Maps",
-    "cheapestNearby": "Mais barato nas proximidades",
+    "cheapestNearby": "Mais barato perto",
     "noStationsFound": "Nenhum posto encontrado",
-    "locationRequired": "É necessária permissão de localização para mostrar postos próximos",
-    "useSearch": "Por favor, use a opção de pesquisa para encontrar postos",    
-    "noLocationTitle": "Permissão de localização é necessária para mostrar postos próximos.",
-    "noLocationSubtitle": "Por favor, use a opção de pesquisa para encontrar postos.",
+    "locationRequired": "Permissão de localização necessária para mostrar postos próximos",
+    "useSearch": "Por favor use a pesquisa para encontrar postos",
+    "noLocationTitle": "Localização necessária.",
+    "noLocationSubtitle": "Ative a localização ou pesquise manualmente.",
+    "detailsTitle": "Detalhes do Posto",
+    "priceHistory": "Histórico de Preços",
+    "noHistoryData": "Sem histórico disponível para este período.",
     "sortBy": {
       "mais_caro": "Mais caro",
       "mais_barato": "Mais barato",
@@ -43,63 +46,91 @@
     "closed": "Fechado",
     "opensAt": "Abre às"
   },
+  "schedule": {
+    "title": "Horário",
+    "days": {
+      "weekdays": "Seg - Sex",
+      "saturday": "Sábado",
+      "sunday": "Domingo",
+      "holiday": "Feriados"
+    },
+    "status": {
+      "open": "Aberto agora",
+      "open24h": "Aberto 24h",
+      "closed": "Fechado",
+      "closingSoon": "Fecha em {{count}} min",
+      "unavailable": "Indisponível",
+      "noInfo": "Horário não informado",
+      "sourceError": "Horário indisponível na fonte oficial."
+    }
+  },
   "search": {
     "title": "Pesquisar",
     "placeholder": "Pesquisar distrito ou cidade...",
     "selectDistrict": "Selecione um distrito",
     "district": "Distrito",
     "municipality": "Município",
-    "fuelType": "Tipo de Combustível",
-    "sortBy": "Ordenar Por",
+    "fuelType": "Combustível",
+    "sortBy": "Ordenar por",
     "search": "Pesquisar",
-    "clear": "Limpar",
-    "errorFuel": "Por favor, selecione um tipo de combustível.",
-    "errorLocation": "Por favor, selecione um distrito ou cidade."
+    "clear": "Limpar Pesquisa",
+    "errorFuel": "Selecione um tipo de combustível.",
+    "errorLocation": "Selecione um distrito ou cidade."
   },
   "status": {
     "loading": "A carregar...",
-    "locationPermissionDenied": "É necessária permissão de localização para mostrar estações próximas",
-    "noStationsFound": "Nenhum posto encontrado na sua área",
-    "serviceUnavailable": "Serviço temporariamente indisponível. Por favor, tente novamente mais tarde.",
-    "noInternet": "Sem conexão à internet. Por favor, verifique sua conexão e tente novamente.",
-    "error": "Ocorreu um erro. Por favor, tente novamente."
+    "locationPermissionDenied": "Permissão de localização necessária",
+    "noStationsFound": "Nenhum posto encontrado na área",
+    "serviceUnavailable": "Serviço temporariamente indisponível.",
+    "noInternet": "Sem ligação à internet.",
+    "error": "Ocorreu um erro. Tente novamente."
   },
   "settings": {
     "title": "Definições",
     "darkMode": "Modo escuro",
-    "mapProvider": "Provedor do Mapa",
-    "mapProviderDescription": "Escolha o serviço de mapas que prefere utilizar",
+    "mapProvider": "Fornecedor do Mapa",
+    "mapProviderDescription": "Escolha o seu serviço de mapas preferido",
     "about": "Sobre",
     "language": "Idioma",
     "favorites": "Favoritos",
     "save": "Guardar",
     "cancel": "Cancelar",
     "select": "Selecionar",
-    "navigationApp": "App de navegação",
-    "searchRadius": "Raio de busca",
-    "fuelType": "Tipo de combustível",
-    "logout": "Terminar sessão",
+    "navigationApp": "App de Navegação",
+    "searchRadius": "Raio de pesquisa",
+    "fuelType": "Combustíveis",
+    "logout": "Sair",
     "version": "Versão",
     "developer": "Desenvolvido por Miguel Areal",
-    "provider": "Dados fornecidos pela DGEG",
+    "provider": "Dados fornecidos por DGEG",
     "privacy": "Política de Privacidade",
     "terms": "Termos de Uso",
     "aboutText": "TankUp - Localizador de postos de combustível em Portugal.",
-    "selectMaxFuels": " Pode selecionar até 6 tipos de combustível.",    
-    "excludedBrands": "Marcas Excluídas",
-    "excludedBrandsDesc": "Selecione marcas que nunca quer ver.",
-    "hidden": "Ocultas",
-    "selected": "Selected"
+    "selectMaxFuels": "Pode selecionar até 6 tipos de combustível.",
+    "excludedBrands": "Marcas Ignoradas",
+    "excludedBrandsDesc": "Selecione marcas que nunca deseja ver.",
+    "hidden": "ocultas",
+    "selected": "selecionados",
+    "noBrandsAvailable": "A carregar marcas..."
   },
   "favorites": {
     "title": "Favoritos",
-    "emptyTitle": "Sem favoritos ainda",
+    "emptyTitle": "Sem favoritos",
     "emptyMessage": "Adicione postos aos favoritos para vê-los aqui!"
   },
   "error": {
     "locationDenied": "Permissão de localização negada.",
     "locationError": "Erro ao obter localização.",
-    "noInternet": "Sem ligação à internet.",    
-    "searchFailed": "Falha na pesquisa. Por favor, tente novamente."
+    "noInternet": "Sem internet.",
+    "searchFailed": "A pesquisa falhou."
+  },
+  "time": {
+    "days_one": "{{count}} Dia",
+    "days_other": "{{count}} Dias",
+    "months_one": "{{count}} Mês",
+    "months_other": "{{count}} Meses"
+  },
+  "common": {
+    "exit": "Sair da App"
   }
-} 
+}

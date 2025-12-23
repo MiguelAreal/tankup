@@ -14,6 +14,7 @@
   export const ENDPOINTS = {
     nearby: '/api/stations/nearby',
     byLocation: '/api/stations/by-location',
+    history: '/api/stations/history',
     info: '/api/info/types',
     sysversions: '/api/info/sysversions',
   } as const;

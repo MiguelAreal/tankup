@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import { Href, useRouter } from 'expo-router';
+import React, { useCallback } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { Posto } from '../../types/models';
+import { Posto } from '../../types/models/Posto'; // Ajuste o caminho conforme a sua estrutura
 import { PostoSortOption } from '../../types/models/PostoSortOption';
 import { useAppContext } from '../context/AppContext';
 import FuelTypeSelector from './FuelTypeSelector';
@@ -40,7 +41,14 @@ const StationList: React.FC<StationListProps> = ({
   selectedSort,
 }) => {
   const { theme } = useAppContext();
-  
+  const router = useRouter();
+
+  // Handler para navegar para o detalhe
+  const handleStationPress = useCallback((station: Posto) => {
+    const stationData = encodeURIComponent(JSON.stringify(station));
+    router.push(`/station/${station.id}?stationData=${stationData}`);
+  }, [router]);
+
   if (isLoading) {
     return (
       <View style={{ backgroundColor: theme.background }} className="flex-1 items-center justify-center">
@@ -111,6 +119,7 @@ const StationList: React.FC<StationListProps> = ({
                 selectedFuelType={selectedFuelType}
                 isSelected={selectedStation?.id === station.id}
                 preferredNavigationApp={preferredNavigationApp}
+                onPress={handleStationPress} // Passamos o handler aqui
               />
             </View>
           ))

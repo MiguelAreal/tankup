@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // Types & Utils
 import { Posto } from '../../types/models/Posto';
 import { useAppContext } from '../context/AppContext';
 import { getBrandImage } from '../utils/brandImages';
 import { calculateDistance } from '../utils/location';
-import { openNavigationApp } from '../utils/navigationHelper'; // <--- O novo utilitário
+import { openNavigationApp } from '../utils/navigationHelper';
 import { isStationOpen } from '../utils/schedule';
 import { isFavorite, removeFavorite, saveFavorite } from '../utils/storage';
 
@@ -18,17 +18,16 @@ interface PostoCardProps {
   selectedFuelType: string;
   isSelected?: boolean;
   preferredNavigationApp: 'google_maps' | 'waze' | 'apple_maps';
+  onPress: (station: Posto) => void; // <--- NOVA PROP
 }
 
-// React.memo impede re-renders se as props não mudarem (ex: scroll na lista pai)
 const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
-  const { station, userLocation, selectedFuelType, isSelected, preferredNavigationApp } = props;
+  const { station, userLocation, selectedFuelType, isSelected, preferredNavigationApp, onPress } = props;
   
   const { theme } = useAppContext();
   const { t } = useTranslation();
   
   const [isFavorited, setIsFavorited] = useState(false);
-  // useRef para valores que não precisam disparar re-renders
   const highlightAnim = useRef(new Animated.Value(0)).current;
 
   // --- Effects ---
@@ -45,16 +44,15 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
 
   useEffect(() => {
     if (isSelected) {
-      // Animação suave e nativa
       Animated.sequence([
-        Animated.timing(highlightAnim, { toValue: 1, duration: 200, useNativeDriver: false }), // false pois backgroundColor não suporta native
+        Animated.timing(highlightAnim, { toValue: 1, duration: 200, useNativeDriver: false }),
         Animated.timing(highlightAnim, { toValue: 0.5, duration: 300, useNativeDriver: false }),
         Animated.timing(highlightAnim, { toValue: 0, duration: 500, useNativeDriver: false })
       ]).start();
     }
   }, [isSelected, highlightAnim]);
 
-  // --- Calculations (Memoized for Performance) ---
+  // --- Calculations ---
 
   const distance = useMemo(() => {
     if (!station.localizacao || !userLocation.latitude) return 0;
@@ -85,7 +83,6 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
   // --- Handlers ---
 
   const handleFavoritePress = useCallback(async () => {
-    // Optimistic UI Update (atualiza visualmente antes de esperar o storage)
     setIsFavorited(prev => !prev); 
     try {
       if (isFavorited) {
@@ -94,9 +91,7 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
         await saveFavorite(station);
       }
     } catch (error) {
-      // Reverte se falhar
       setIsFavorited(prev => !prev);
-      console.error('Error toggling favorite:', error);
     }
   }, [isFavorited, station]);
 
@@ -107,6 +102,10 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
     }
   }, [station.localizacao, preferredNavigationApp]);
 
+  const handleCardPress = () => {
+    onPress(station);
+  };
+
   // --- Dynamic Styles ---
   
   const containerStyle = {
@@ -115,7 +114,7 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
       outputRange: [theme.card, theme.primaryLight, theme.card]
     }),
     borderColor: isSelected ? theme.primary : theme.border,
-    shadowColor: theme.text, // Sombra adapta-se ao tema (preto/branco)
+    shadowColor: theme.text,
   };
 
   return (
@@ -126,91 +125,94 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
         { borderWidth: isSelected ? 2 : 1 }
       ]}
     >
-      {/* --- Top Row: Brand & Info & Price --- */}
-      <View style={styles.rowBetween}>
-        <View style={styles.brandContainer}>
-          <Image
-            source={getBrandImage(station.marca)}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <View style={styles.infoContainer}>
-            <Text style={[styles.stationName, { color: theme.text }]} numberOfLines={1}>
-              {station.nome}
-            </Text>
-            <Text style={[styles.stationBrand, { color: theme.textSecondary }]}>
-              {station.marca}
-            </Text>
-            {station.morada && (
-              <Text style={[styles.stationAddress, { color: theme.textSecondary }]} numberOfLines={1}>
-                {station.morada.localidade}
+      <Pressable onPress={handleCardPress} style={{ flex: 1 }}>
+        {/* --- Top Row: Brand & Info & Price --- */}
+        <View style={styles.rowBetween}>
+          <View style={styles.brandContainer}>
+            <Image
+              source={getBrandImage(station.marca)}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <View style={styles.infoContainer}>
+              <Text style={[styles.stationName, { color: theme.text }]} numberOfLines={1}>
+                {station.nome}
+              </Text>
+              <Text style={[styles.stationBrand, { color: theme.textSecondary }]}>
+                {station.marca}
+              </Text>
+              {station.morada && (
+                <Text style={[styles.stationAddress, { color: theme.textSecondary }]} numberOfLines={1}>
+                  {station.morada.localidade}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity 
+              onPress={handleFavoritePress} 
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name={isFavorited ? "heart" : "heart-outline"}
+                size={24}
+                color={isFavorited ? theme.primary : theme.textSecondary}
+              />
+            </TouchableOpacity>
+            {selectedFuel && (
+              <Text style={[styles.price, { color: theme.text }]}>
+                {selectedFuel.preco}€
               </Text>
             )}
           </View>
         </View>
 
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity 
-            onPress={handleFavoritePress} 
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isFavorited ? "heart" : "heart-outline"}
-              size={24}
-              color={isFavorited ? theme.primary : theme.textSecondary}
-            />
-          </TouchableOpacity>
-          {selectedFuel && (
-            <Text style={[styles.price, { color: theme.text }]}>
-              {selectedFuel.preco}€
+        {/* --- Bottom Row: Status & Nav --- */}
+        <View style={styles.footerRow}>
+          <View style={styles.statusContainer}>
+            <View style={[
+              styles.statusDot, 
+              { backgroundColor: isOpen ? '#22c55e' : '#ef4444' }
+            ]} />
+            <Text style={{ fontSize: 12, color: theme.textSecondary }}>
+              {isOpen ? t('station.open') : t('station.closed')}
             </Text>
-          )}
-        </View>
-      </View>
+          </View>
 
-      {/* --- Bottom Row: Status & Nav --- */}
-      <View style={styles.footerRow}>
-        <View style={styles.statusContainer}>
-          <View style={[
-            styles.statusDot, 
-            { backgroundColor: isOpen ? '#22c55e' : '#ef4444' }
-          ]} />
-          <Text style={{ fontSize: 12, color: theme.textSecondary }}>
-            {isOpen ? t('station.open') : t('station.closed')}
-          </Text>
-        </View>
+          <View style={styles.distanceContainer}>
+            <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
+            <Text style={{ color: theme.textSecondary, marginLeft: 4, fontSize: 12 }}>
+              {distance.toFixed(1)} km
+            </Text>
+          </View>
 
-        <View style={styles.distanceContainer}>
-          <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
-          <Text style={{ color: theme.textSecondary, marginLeft: 4, fontSize: 12 }}>
-            {distance.toFixed(1)} km
-          </Text>
+          <TouchableOpacity onPress={onNavigate} style={styles.navButton}>
+            <Ionicons name={navigationIconName} size={20} color={theme.primary} />
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity onPress={onNavigate} style={styles.navButton}>
-          <Ionicons name={navigationIconName} size={20} color={theme.primary} />
-        </TouchableOpacity>
-      </View>
+      </Pressable>
     </Animated.View>
   );
 });
 
-// Estilos estáticos (Performance: criados apenas uma vez)
 const styles = StyleSheet.create({
   container: {
     width: '100%',
     marginBottom: 10,
-    padding: 16,
     borderRadius: 16,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 3,
+    overflow: 'hidden', // Importante para o ripple do pressable não sair das bordas
   },
   rowBetween: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    padding: 16,
+    paddingBottom: 0,
   },
   brandContainer: {
     flexDirection: 'row',
@@ -255,6 +257,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 16,
     paddingTop: 12,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: 'rgba(150, 150, 150, 0.1)',
   },

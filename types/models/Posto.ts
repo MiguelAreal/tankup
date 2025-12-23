@@ -13,10 +13,11 @@ export interface Posto {
     coordinates: [number, number];
   };
   horario: {
-    [key: string]: {
-      abertura: string;
-      fecho: string;
-    };
+    diasUteis: string;
+    sabado: string;
+    domingo: string;
+    feriado: string;
+    [key: string]: string; 
   };
   combustiveis: Array<{
     tipo: string;
