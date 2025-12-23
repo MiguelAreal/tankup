@@ -65,7 +65,7 @@ const HomeScreen = () => {
     selectedFuelTypes, 
     preferredNavigationApp,
     theme,
-    excludedBrands // <--- NOVO: Importar marcas excluídas
+    excludedBrands
   } = useAppContext();
 
   const { searchState, clearSearch: clearSearchContext, isSearchActive, setSearchState } = useSearch();
@@ -99,8 +99,7 @@ const HomeScreen = () => {
     return !!searchState || params.searchType === 'location' || isSearchActive;
   }, [searchState, params.searchType, isSearchActive]);
 
-  // --- NOVA LÓGICA DE FILTRAGEM ---
-  // Este Effect corre sempre que os dados (allStations) ou as definições (excludedBrands) mudam
+
   useEffect(() => {
     if (allStations.length > 0) {
       const filtered = allStations.filter(station => {
@@ -453,6 +452,7 @@ const HomeScreen = () => {
       onFuelTypeChange={!isSearchActive ? handleFuelTypeChange : undefined}
       onSelectSort={!isSearchActive ? handleSortChange : undefined}
       selectedSort={currentSort}
+      isLocationSearch={isSearchActive}
     />
   ), [filteredStations, location, selectedFuelType, selectedStation, preferredNavigationApp, isLoading, isSearchActive, handleFuelTypeChange, handleSortChange, currentSort]);
 

@@ -18,11 +18,20 @@ interface PostoCardProps {
   selectedFuelType: string;
   isSelected?: boolean;
   preferredNavigationApp: 'google_maps' | 'waze' | 'apple_maps';
-  onPress: (station: Posto) => void; // <--- NOVA PROP
+  onPress: (station: Posto) => void;
+  showDistance?: boolean;
 }
 
 const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
-  const { station, userLocation, selectedFuelType, isSelected, preferredNavigationApp, onPress } = props;
+  const { 
+    station, 
+    userLocation, 
+    selectedFuelType, 
+    isSelected, 
+    preferredNavigationApp, 
+    onPress,
+    showDistance = true // Default é mostrar, a menos que dito o contrário
+  } = props;
   
   const { theme } = useAppContext();
   const { t } = useTranslation();
@@ -31,7 +40,6 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
   const highlightAnim = useRef(new Animated.Value(0)).current;
 
   // --- Effects ---
-
   useEffect(() => {
     let isActive = true;
     const checkStatus = async () => {
@@ -53,7 +61,6 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
   }, [isSelected, highlightAnim]);
 
   // --- Calculations ---
-
   const distance = useMemo(() => {
     if (!station.localizacao || !userLocation.latitude) return 0;
     return calculateDistance(
@@ -81,7 +88,6 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
   }, [preferredNavigationApp]);
 
   // --- Handlers ---
-
   const handleFavoritePress = useCallback(async () => {
     setIsFavorited(prev => !prev); 
     try {
@@ -107,7 +113,6 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
   };
 
   // --- Dynamic Styles ---
-  
   const containerStyle = {
     backgroundColor: highlightAnim.interpolate({
       inputRange: [0, 0.5, 1],
@@ -180,12 +185,15 @@ const PostoCard: React.FC<PostoCardProps> = React.memo((props) => {
             </Text>
           </View>
 
-          <View style={styles.distanceContainer}>
-            <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
-            <Text style={{ color: theme.textSecondary, marginLeft: 4, fontSize: 12 }}>
-              {distance.toFixed(1)} km
-            </Text>
-          </View>
+          {/* SÓ MOSTRA DISTÂNCIA SE PEDIDO */}
+          {showDistance && (
+            <View style={styles.distanceContainer}>
+              <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
+              <Text style={{ color: theme.textSecondary, marginLeft: 4, fontSize: 12 }}>
+                {distance.toFixed(1)} km
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity onPress={onNavigate} style={styles.navButton}>
             <Ionicons name={navigationIconName} size={20} color={theme.primary} />
@@ -205,7 +213,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 3,
-    overflow: 'hidden', // Importante para o ripple do pressable não sair das bordas
+    overflow: 'hidden',
   },
   rowBetween: {
     flexDirection: 'row',

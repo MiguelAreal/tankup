@@ -21,7 +21,7 @@ type ScreenMode = 'districts' | 'cities';
 export default function SearchScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { selectedFuelTypes, theme, excludedBrands } = useAppContext(); // <--- NOVO: Importar excludedBrands
+  const { selectedFuelTypes, theme, excludedBrands } = useAppContext();
   const { setSearchState } = useSearch();
 
   // State

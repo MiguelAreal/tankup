@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Href, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { Posto } from '../../types/models/Posto'; // Ajuste o caminho conforme a sua estrutura
+import { Posto } from '../../types/models/Posto';
 import { PostoSortOption } from '../../types/models/PostoSortOption';
 import { useAppContext } from '../context/AppContext';
 import FuelTypeSelector from './FuelTypeSelector';
@@ -24,6 +24,8 @@ type StationListProps = {
   onFuelTypeChange?: (fuelType: string) => void;
   onSelectSort?: (sort: PostoSortOption) => void;
   selectedSort?: PostoSortOption;
+  // NOVA PROP: Define se estamos em modo de pesquisa por localidade
+  isLocationSearch?: boolean; 
 };
 
 const StationList: React.FC<StationListProps> = ({
@@ -39,14 +41,20 @@ const StationList: React.FC<StationListProps> = ({
   onFuelTypeChange,
   onSelectSort,
   selectedSort,
+  isLocationSearch = false, // Default false
 }) => {
   const { theme } = useAppContext();
   const router = useRouter();
 
   // Handler para navegar para o detalhe
   const handleStationPress = useCallback((station: Posto) => {
-    const stationData = encodeURIComponent(JSON.stringify(station));
-    router.push(`/station/${station.id}?stationData=${stationData}`);
+    router.push({
+      pathname: '/station/[id]',
+      params: { 
+        id: station.id, 
+        stationData: JSON.stringify(station) 
+      }
+    } as any);
   }, [router]);
 
   if (isLoading) {
@@ -119,7 +127,8 @@ const StationList: React.FC<StationListProps> = ({
                 selectedFuelType={selectedFuelType}
                 isSelected={selectedStation?.id === station.id}
                 preferredNavigationApp={preferredNavigationApp}
-                onPress={handleStationPress} // Passamos o handler aqui
+                onPress={handleStationPress} 
+                showDistance={!isLocationSearch} 
               />
             </View>
           ))
